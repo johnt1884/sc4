@@ -1631,13 +1631,39 @@
                 let selection = shortcutSelections.get(key);
 
                 const hasCuts = editorCurrentCuts.length > 0;
-                const markersChanged = editorMarkers.length > 0;
-                const finalEditRotation = editorCurrentAppliedRotation.toString();
                 const finalEditFlipped = editorCurrentAppliedFlip;
 
-                // Check if anything actually changed in the editor vs initial video state
-                // Note: we compare to initial state because edit mode defines the absolute new state of the video file
-                const editChanged = hasCuts || markersChanged || (finalEditRotation !== "0") || (finalEditFlipped !== false);
+                // Deduplicate markers at same frame (keep last)
+                const uniqueMarkers = [];
+                if (editorMarkers.length > 0) {
+                    let lastFrame = -1;
+                    const sorted = [...editorMarkers].sort((a, b) => a.frame - b.frame);
+                    for (let i = 0; i < sorted.length; i++) {
+                        if (i === sorted.length - 1 || sorted[i].frame !== sorted[i+1].frame) {
+                            uniqueMarkers.push(sorted[i]);
+                        }
+                    }
+                }
+
+                // Analyze rotation uniformity
+                let editRotationType = 'none';
+                let isFullLength = false;
+                let finalEditRotation = "0";
+
+                if (uniqueMarkers.length === 1 && uniqueMarkers[0].frame === 0) {
+                    editRotationType = 'uniform';
+                    isFullLength = true;
+                    finalEditRotation = uniqueMarkers[0].rotation.toString();
+                    if (finalEditRotation === "0") {
+                        editRotationType = 'none';
+                        isFullLength = false;
+                    }
+                } else if (uniqueMarkers.length > 0) {
+                    editRotationType = 'complex';
+                    finalEditRotation = uniqueMarkers[uniqueMarkers.length - 1].rotation.toString();
+                }
+
+                const editChanged = hasCuts || (editRotationType !== 'none') || (finalEditFlipped !== false);
 
                 if (!selection) {
                     selection = {
@@ -1653,14 +1679,21 @@
                 }
                 
                 selection.cuts = JSON.parse(JSON.stringify(editorCurrentCuts));
-                selection.markers = JSON.parse(JSON.stringify(editorMarkers));
+                selection.markers = uniqueMarkers;
                 selection.editRotation = finalEditRotation;
+                selection.editRotationType = editRotationType;
+                selection.isFullLength = isFullLength;
                 selection.editFlipped = finalEditFlipped;
                 selection.deleteEditThumbnails = editorDeleteEditThumbsFlag;
                 selection.fps = editorEstimatedFPS;
                 
-                // Track if it was rotated/edited in edit mode in THIS session
+                // Track if it was edited in edit mode
                 selection.editModeRotated = editChanged || editorDeleteEditThumbsFlag;
+
+                // Override persistence map for current session
+                if (editModeRotatedVideos.has(key)) {
+                    editModeRotatedVideos.delete(key);
+                }
 
                 // Close editor
                 editorModal.style.display = 'none';
@@ -2198,7 +2231,16 @@
             const key = projectPath + '|' + videoName;
             const selection = shortcutSelections.get(key);
             const type = selection ? selection.type : '';
-            const rotation = selection ? selection.rotation : "0";
+
+            // Logic for visual thumbnail rotation
+            let softRotation = parseInt(selection ? selection.rotation : "0");
+            let hardUniformRotation = 0;
+            if (selection && selection.editRotationType === 'uniform' && selection.isFullLength) {
+                hardUniformRotation = parseInt(selection.editRotation);
+            }
+            const visualRotation = (softRotation + hardUniformRotation) % 360;
+            const visualRotationStr = visualRotation === 0 ? "0" : visualRotation.toString();
+
             const flipped = selection ? !!selection.flipped : false;
 
             const actionBar = rowDiv.querySelector('.row-action-bar');
@@ -2208,11 +2250,42 @@
                 const nameSpan = actionBar.querySelector('.row-video-name');
                 if (nameSpan) {
                     nameSpan.innerHTML = '';
-                    const isEditRotated = editModeRotatedVideos.get(key) || (selection && selection.editModeRotated);
-                    if (isEditRotated) {
+
+                    const hasUiRotation = selection && selection.rotation !== "0";
+                    const hasEditRotation = selection && selection.editRotationType && selection.editRotationType !== 'none';
+                    const editChanged = selection && selection.editModeRotated;
+
+                    if (hasUiRotation || editChanged) {
                         const icon = document.createElement('span');
                         icon.className = 'red-rotation-icon';
                         icon.innerHTML = '&#10227;';
+
+                        // Color coding per instructions: Green (UI), Yellow (Edit), Blue (Both)
+                        if (hasUiRotation && editChanged) {
+                            icon.style.color = '#009dff'; // Blue
+                        } else if (hasUiRotation) {
+                            icon.style.color = '#00ff1e'; // Green
+                        } else {
+                            icon.style.color = '#ffe11f'; // Yellow
+                        }
+
+                        // Tooltip logic
+                        let tooltipParts = [];
+                        if (hasUiRotation) tooltipParts.push(`UI Rotation: ${selection.rotation}°`);
+                        if (selection && selection.editModeRotated) {
+                            if (selection.editRotationType === 'uniform') {
+                                tooltipParts.push(`Edit Rotation: ${selection.editRotation}° (Uniform, Full-length)`);
+                            } else if (selection.editRotationType === 'complex') {
+                                tooltipParts.push(`Edit Rotation: Complex/Multi-marker`);
+                            }
+                            if (selection.editFlipped) tooltipParts.push(`Edit Flip: ON`);
+                            if (selection.cuts && selection.cuts.length > 0) tooltipParts.push(`Cuts: ${selection.cuts.length}`);
+                            if (selection.deleteEditThumbnails) tooltipParts.push(`Delete Edit Thumbs: YES`);
+                        } else if (editModeRotatedVideos.get(key)) {
+                            tooltipParts.push(`Edit Mode: Edited in previous session`);
+                        }
+                        icon.title = tooltipParts.join(' | ');
+
                         nameSpan.appendChild(icon);
                     }
                     nameSpan.appendChild(document.createTextNode(videoName));
@@ -2225,8 +2298,8 @@
                 if (type) {
                     t.classList.add('selected-' + type);
                 }
-                if (rotation !== "0") {
-                    t.classList.add('rotate-' + rotation);
+                if (visualRotationStr !== "0") {
+                    t.classList.add('rotate-' + visualRotationStr);
                 }
                 if (flipped) {
                     t.classList.add('flipped');
@@ -3398,14 +3471,25 @@
                 if (!miscUpdates.has(projectPath)) miscUpdates.set(projectPath, {});
                 
                 const cats = videoCategories.get(key);
-                const isEditRotated = editModeRotatedVideos.get(key) || (shortcutSelections.has(key) && shortcutSelections.get(key).editModeRotated);
+                const sel = shortcutSelections.get(key);
                 
                 let dataParts = [];
                 if (cats && cats.size > 0) {
                     dataParts.push(`cats:${Array.from(cats).join(',')}`);
                 }
-                if (isEditRotated) {
-                    dataParts.push('edit_rotated:true');
+
+                // Detailed edit rotation state persistence
+                if (sel && sel.editModeRotated) {
+                    if (sel.editRotationType && sel.editRotationType !== 'none') {
+                        dataParts.push(`edit_rot:${sel.editRotationType}|${sel.editRotation}|${sel.isFullLength ? '1' : '0'}`);
+                    } else if (sel.deleteEditThumbnails || (sel.cuts && sel.cuts.length > 0) || sel.editFlipped) {
+                        dataParts.push('edit_rotated:true');
+                    }
+                } else if (editModeRotatedVideos.has(key)) {
+                    // Restore complex/legacy state if not re-edited
+                    const existing = editModeRotatedVideos.get(key);
+                    if (typeof existing === 'string') dataParts.push(existing);
+                    else dataParts.push('edit_rotated:true');
                 }
                 
                 if (dataParts.length > 0) {
@@ -3712,8 +3796,8 @@
                                     });
                                     initialVideoCategories.set(key, new Set(cats));
                                 }
-                            } else if (part === 'edit_rotated:true') {
-                                editModeRotatedVideos.set(key, true);
+                            } else if (part === 'edit_rotated:true' || part.startsWith('edit_rot:')) {
+                                editModeRotatedVideos.set(key, part === 'edit_rotated:true' ? true : part);
                             }
                         });
                     }
@@ -4253,19 +4337,41 @@
                         const rotation = rotData.rotation;
                         const flipped = rotData.flipped;
 
-                        if ((initialShortcutType || rotation !== "0" || flipped) && currentMode !== 'playlist-root' && currentMode !== 'update-playlist-root') {
-                            const key = project.path + '|' + videoFile.name;
-                            const selectionData = { 
+                        const key = project.path + '|' + videoFile.name;
+                        const loadedEditState = editModeRotatedVideos.get(key);
+
+                        let selectionData = shortcutSelections.get(key);
+                        if (!selectionData && (initialShortcutType || rotation !== "0" || flipped || loadedEditState) && currentMode !== 'playlist-root' && currentMode !== 'update-playlist-root') {
+                            selectionData = {
                                 videoName: videoFile.name, projectPath: project.path, subfolder: videoFile.subfolder,
                                 projectName: project.name,
                                 type: initialShortcutType || '', rotation: rotation, flipped: flipped,
                                 buttonRotationTouched: false
                             };
                             shortcutSelections.set(key, selectionData);
-                            initialShortcutSelections.set(key, { 
-                                type: initialShortcutType, rotation: rotation, flipped: flipped, 
-                                subfolder: videoFile.subfolder, projectName: project.name 
-                            });
+                        }
+
+                        if (selectionData) {
+                            selectionData.subfolder = videoFile.subfolder;
+                            selectionData.projectName = project.name;
+                            if (loadedEditState) {
+                                selectionData.editModeRotated = true;
+                                if (typeof loadedEditState === 'string' && loadedEditState.startsWith('edit_rot:')) {
+                                    const val = loadedEditState.substring(9);
+                                    const bits = val.split('|');
+                                    if (bits.length >= 2) {
+                                        selectionData.editRotationType = bits[0];
+                                        selectionData.editRotation = bits[1];
+                                        selectionData.isFullLength = bits[2] === '1';
+                                    }
+                                }
+                            }
+                            if (!initialShortcutSelections.has(key)) {
+                                initialShortcutSelections.set(key, {
+                                    type: initialShortcutType, rotation: rotation, flipped: flipped,
+                                    subfolder: videoFile.subfolder, projectName: project.name
+                                });
+                            }
                         }
 
                         canvasElements.push(rowDiv);
