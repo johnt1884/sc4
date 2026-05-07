@@ -2513,14 +2513,26 @@
                 globalScale = parseFloat(sizeSelector.value);
             }
 
-            const firstThumb = document.querySelector('.thumbnail[data-original-width]');
-            const standardWidth = firstThumb ? parseFloat(firstThumb.dataset.originalWidth) : 320;
-            const standardHeight = firstThumb ? parseFloat(firstThumb.dataset.originalHeight) : 180;
+            let standardWidth = 320;
+            let standardHeight = 180;
+            let referenceThumb = null;
+
+            const allThumbs = Array.from(document.querySelectorAll('.thumbnail[data-original-width]'));
+            if (allThumbs.length > 0) {
+                // Use median width to be robust against both high-res and low-res outliers
+                const widths = allThumbs.map(t => parseFloat(t.dataset.originalWidth)).sort((a, b) => a - b);
+                const heights = allThumbs.map(t => parseFloat(t.dataset.originalHeight)).sort((a, b) => a - b);
+                standardWidth = widths[Math.floor(widths.length / 2)];
+                standardHeight = heights[Math.floor(heights.length / 2)];
+
+                // Use a thumbnail that matches standardWidth as our reference for rotation checks
+                referenceThumb = allThumbs.find(t => parseFloat(t.dataset.originalWidth) === standardWidth) || allThumbs[0];
+            }
 
             if (isAuto) {
                 const ow = standardWidth;
                 const oh = standardHeight;
-                const isRot90 = firstThumb ? (firstThumb.classList.contains('rotate-90') || firstThumb.classList.contains('rotate-270')) : false;
+                const isRot90 = referenceThumb ? (referenceThumb.classList.contains('rotate-90') || referenceThumb.classList.contains('rotate-270')) : false;
                 const refW = isRot90 ? oh : ow;
 
                 // Available width for content inside thumbnails-container
