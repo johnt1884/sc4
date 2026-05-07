@@ -2260,10 +2260,22 @@
             const leftGroup = document.createElement('div');
             leftGroup.className = 'row-action-group-left';
 
-            const createBtn = (text, onClick, type = null) => {
+            const createBtn = (text, onClick, type = null, color = null) => {
                 const btn = document.createElement('button');
                 btn.className = 'bar-button row-bar-btn';
-                btn.textContent = text;
+
+                if (color) {
+                    const circle = document.createElement('span');
+                    circle.className = 'color-circle';
+                    if (color.startsWith('--')) {
+                        circle.style.backgroundColor = 'var(' + color + ')';
+                    } else {
+                        circle.style.backgroundColor = color;
+                    }
+                    btn.appendChild(circle);
+                }
+                btn.appendChild(document.createTextNode(text));
+
                 if (type) btn.dataset.type = type;
                 btn.onclick = (e) => {
                     e.stopPropagation();
@@ -2305,9 +2317,9 @@
             leftGroup.appendChild(createDeleteCross(videoName, projectPath, subfolder, rowDiv));
             leftGroup.appendChild(createBtn('Rotate Left', () => rotate(-90)));
             leftGroup.appendChild(createBtn('Rotate Right', () => rotate(90)));
-            leftGroup.appendChild(createBtn('Both', () => setType('both-sc'), 'both-sc'));
-            leftGroup.appendChild(createBtn('Subfolder', () => setType('subfolder-sc'), 'subfolder-sc'));
-            leftGroup.appendChild(createBtn('Root', () => setType('root-sc'), 'root-sc'));
+            leftGroup.appendChild(createBtn('Both', () => setType('both-sc'), 'both-sc', '--both-sc-color'));
+            leftGroup.appendChild(createBtn('Subfolder', () => setType('subfolder-sc'), 'subfolder-sc', '--subfolder-sc-color'));
+            leftGroup.appendChild(createBtn('Root', () => setType('root-sc'), 'root-sc', '--root-sc-color'));
             leftGroup.appendChild(createBtn('Rotate 180°', () => rotate(180)));
 
             const toggleFlip = () => {
