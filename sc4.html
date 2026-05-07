@@ -1611,42 +1611,35 @@
                 let selection = shortcutSelections.get(key);
 
                 const hasCuts = editorCurrentCuts.length > 0;
-                let markersChanged = editorMarkers.length > 0;
-                let finalRotation = initialRot;
-                let finalFlipped = editorCurrentAppliedFlip;
+                const markersChanged = editorMarkers.length > 0;
+                const finalEditRotation = editorCurrentAppliedRotation.toString();
+                const finalEditFlipped = editorCurrentAppliedFlip;
 
-                if (markersChanged) {
-                    const lastMarker = editorMarkers[editorMarkers.length - 1];
-                    finalRotation = lastMarker.rotation.toString();
-                    if (editorMarkers.length === 1 && editorMarkers[0].frame === 0) {
-                        if (finalRotation === initialRot) {
-                            markersChanged = false;
-                        }
-                    }
-                }
+                // Check if anything actually changed in the editor vs initial video state
+                // Note: we compare to initial state because edit mode defines the absolute new state of the video file
+                const editChanged = hasCuts || markersChanged || (finalEditRotation !== "0") || (finalEditFlipped !== false);
 
-                // Goal: New commit entirely disregards/replaces the previous one.
                 if (!selection) {
                     selection = {
                         videoName: editorCurrentVideo.videoName,
                         projectPath: editorCurrentVideo.projectPath,
                         subfolder: editorCurrentVideo.subfolder,
                         projectName: editorCurrentVideo.projectName,
-                        type: '', rotation: finalRotation, flipped: finalFlipped
+                        type: '',
+                        rotation: initialRot,
+                        flipped: initialFlipped
                     };
                     shortcutSelections.set(key, selection);
                 }
                 
                 selection.cuts = JSON.parse(JSON.stringify(editorCurrentCuts));
                 selection.markers = JSON.parse(JSON.stringify(editorMarkers));
-                selection.rotation = finalRotation;
-                selection.flipped = finalFlipped;
+                selection.editRotation = finalEditRotation;
+                selection.editFlipped = finalEditFlipped;
                 selection.fps = editorEstimatedFPS;
-                // Edit mode hard-rotates, so we do not set buttonRotationTouched here
                 
-                // Track if it was rotated in edit mode in THIS session
-                // Red icon appears if it has markers or if rotation was changed from 0 in editor
-                selection.editModeRotated = (editorMarkers.length > 0);
+                // Track if it was rotated/edited in edit mode in THIS session
+                selection.editModeRotated = editChanged;
 
                 // Close editor
                 editorModal.style.display = 'none';
@@ -2190,6 +2183,19 @@
             const actionBar = rowDiv.querySelector('.row-action-bar');
             if (actionBar) {
                 actionBar.classList.toggle('selected-for-categories', key === selectedVideoKey);
+
+                const nameSpan = actionBar.querySelector('.row-video-name');
+                if (nameSpan) {
+                    nameSpan.innerHTML = '';
+                    const isEditRotated = editModeRotatedVideos.get(key) || (selection && selection.editModeRotated);
+                    if (isEditRotated) {
+                        const icon = document.createElement('span');
+                        icon.className = 'red-rotation-icon';
+                        icon.innerHTML = '&#10227;';
+                        nameSpan.appendChild(icon);
+                    }
+                    nameSpan.appendChild(document.createTextNode(videoName));
+                }
             }
 
             rowDiv.querySelectorAll('.thumbnail').forEach(t => {
@@ -2507,10 +2513,13 @@
                 globalScale = parseFloat(sizeSelector.value);
             }
 
+            const firstThumb = document.querySelector('.thumbnail[data-original-width]');
+            const standardWidth = firstThumb ? parseFloat(firstThumb.dataset.originalWidth) : 320;
+            const standardHeight = firstThumb ? parseFloat(firstThumb.dataset.originalHeight) : 180;
+
             if (isAuto) {
-                const firstThumb = document.querySelector('.thumbnail[data-original-width]');
-                const ow = firstThumb ? parseFloat(firstThumb.dataset.originalWidth) : 320;
-                const oh = firstThumb ? parseFloat(firstThumb.dataset.originalHeight) : 180;
+                const ow = standardWidth;
+                const oh = standardHeight;
                 const isRot90 = firstThumb ? (firstThumb.classList.contains('rotate-90') || firstThumb.classList.contains('rotate-270')) : false;
                 const refW = isRot90 ? oh : ow;
 
@@ -2540,8 +2549,17 @@
                         const thumb = wrapper.querySelector('.thumbnail');
                         if (!thumb.dataset.originalWidth) return;
                         
-                        const originalWidth = parseFloat(thumb.dataset.originalWidth);
-                        const originalHeight = parseFloat(thumb.dataset.originalHeight);
+                        let originalWidth = parseFloat(thumb.dataset.originalWidth);
+                        let originalHeight = parseFloat(thumb.dataset.originalHeight);
+
+                        // Fix for supersized images (e.g. full-size last frame):
+                        // If this image is significantly larger than the first thumbnail, normalize its dimensions
+                        if (originalWidth > standardWidth * 1.2 || originalHeight > standardHeight * 1.2) {
+                            const scale = Math.min(standardWidth / originalWidth, standardHeight / originalHeight);
+                            originalWidth *= scale;
+                            originalHeight *= scale;
+                        }
+
                         const scaledWidth = originalWidth * globalScale;
                         const scaledHeight = originalHeight * globalScale;
                         
@@ -2593,6 +2611,8 @@
                 
                 return (sel.cuts && sel.cuts.length > 0) || 
                        (sel.markers && sel.markers.length > 0) ||
+                       (sel.editRotation && sel.editRotation !== "0") ||
+                       (sel.editFlipped) ||
                        (sel.rotation !== initialRot) ||
                        (!!sel.flipped !== initialFlipped);
             });
@@ -3061,13 +3081,11 @@
                 const initialFlipped = initial ? !!initial.flipped : false;
 
                 const hasCuts = sel.cuts && sel.cuts.length > 0;
-                let markersChanged = sel.markers && sel.markers.length > 0;
-                if (markersChanged && sel.markers.length === 1 && sel.markers[0].frame === 0) {
-                    if (sel.markers[0].rotation.toString() === initialRot) {
-                        markersChanged = false;
-                    }
-                }
-                const needsProcessing = hasCuts || markersChanged;
+                const markersChanged = sel.markers && sel.markers.length > 0;
+                const editRotationChanged = sel.editRotation && sel.editRotation !== "0";
+                const editFlippedChanged = !!sel.editFlipped;
+
+                const needsProcessing = hasCuts || markersChanged || editRotationChanged || editFlippedChanged;
 
                 const rotationChanged = sel.rotation !== initialRot;
                 const flippedChanged = !!sel.flipped !== initialFlipped;
@@ -3086,8 +3104,8 @@
 
                 if (needsProcessing) {
                     let editDesc = `${sel.videoName} (`;
-                    if (sel.rotation && sel.rotation !== "0") editDesc += `Rotate ${sel.rotation}°, `;
-                    if (sel.flipped) editDesc += "H-Flip, ";
+                    if (sel.editRotation && sel.editRotation !== "0") editDesc += `Rotate ${sel.editRotation}°, `;
+                    if (sel.editFlipped) editDesc += "H-Flip, ";
                     if (sel.cuts && sel.cuts.length > 0) editDesc += `${sel.cuts.length} Cuts, `;
                     editDesc = editDesc.replace(/, $/, ")").replace(/\($/, "");
                     summaryActions.edits.push(editDesc);
@@ -3113,23 +3131,16 @@
                             scriptLines.push(`    \$markers += @{ time = ${time}; rotation = ${m.rotation} }`);
                         });
                     }
-                    if ((!sel.markers || sel.markers.length === 0) && sel.rotation && sel.rotation !== "0") {
-                        scriptLines.push(`    \$markers += @{ time = 0; rotation = ${sel.rotation} }`);
+                    if ((!sel.markers || sel.markers.length === 0) && sel.editRotation && sel.editRotation !== "0") {
+                        scriptLines.push(`    \$markers += @{ time = 0; rotation = ${sel.editRotation} }`);
                     }
 
                     scriptLines.push(`    \$processedVideoPath = (Join-Path -Path (Split-Path -Parent \$sourceVideoPath) -ChildPath ('processed_' + '${escapedVideoName}'))`);
-                    const isFlipped = sel.flipped ? '\$true' : '\$false';
+                    const isFlipped = sel.editFlipped ? '\$true' : '\$false';
                     scriptLines.push(`    Process-Video -sourcePath \$sourceVideoPath -targetPath \$processedVideoPath -cuts \$cuts -markers \$markers -flipped ${isFlipped}`);
                     scriptLines.push(`    if (Test-Path -LiteralPath \"$processedVideoPath\") {`);
                     scriptLines.push(`        Move-Item -LiteralPath \"$processedVideoPath\" -Destination \"$sourceVideoPath\" -Force`);
                     scriptLines.push(`        Write-Host "Applied edits to: ${escapedVideoName}"`);
-                    
-                    // Clear rotation metadata for this file since it's now burnt-in
-                    const pToUse = isMoved ? sel.targetProject : sel.projectPath;
-                    const nToUse = isMoved ? sel.targetProject : sel.projectName;
-                    const projPathVar = `(${getPSPathRes('\$BaseDir', pToUse, nToUse, '')})`;
-                    const rotFileVar = `(Join-Path -Path ${projPathVar} -ChildPath 'rotation_data.txt')`;
-                    scriptLines.push(`        Update-RotationData -filePath ${rotFileVar} -toAdd @{} -toRemove @('${escapedVideoName}')`);
                     scriptLines.push(`    }`);
                 }
 
