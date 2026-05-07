@@ -819,6 +819,7 @@
                             <button id="editor-rotRight" class="bar-button" style="border-color:#ff4081">90° Right</button>
                             <button id="editor-markEndBtn" class="bar-button" style="border-color:#43a047">Mark End</button>
                             <button id="editor-cutSegmentBtn" class="bar-button" style="background:#d32f2f;color:white" disabled>Cut Segment</button>
+                            <button id="editor-deleteEditThumbsBtn" class="bar-button" style="border-color:#f44336">Delete Edit Thumbnails</button>
                         </div>
                         <div class="editor-control-group" style="justify-content:flex-end">
                             <span id="editor-timeDisplay" style="font-size: 12px; color: #888;">00:00.000 / 00:00.000</span>
@@ -906,6 +907,7 @@
         const editorRotRightBtn = document.getElementById('editor-rotRight');
         const editorVideoOverlay = document.getElementById('editor-videoOverlay');
         const editorFileInfo = document.getElementById('editor-fileInfo');
+        const editorDeleteEditThumbsBtn = document.getElementById('editor-deleteEditThumbsBtn');
         let selectedVideoKey = null;
 
         const prevCanvasBtn = document.getElementById('prev-canvas-btn');
@@ -949,6 +951,7 @@
         let editorScrubbingMouseDown = false;
         let editorCurrentAppliedRotation = 0;
         let editorCurrentAppliedFlip = false;
+        let editorDeleteEditThumbsFlag = false;
 
         let videoCategories = new Map(); // Key: projectPath + '|' + videoName, Value: Set of category names
         let editModeRotatedVideos = new Map(); // Key: projectPath + '|' + videoName, Value: true
@@ -1495,6 +1498,11 @@
             editorMarkers = [];
             editorCurrentAppliedFlip = false;
             editorCurrentAppliedRotation = 0;
+            editorDeleteEditThumbsFlag = false;
+            if (editorDeleteEditThumbsBtn) {
+                editorDeleteEditThumbsBtn.classList.remove('active');
+                editorDeleteEditThumbsBtn.style.backgroundColor = '';
+            }
             editorPendingCutStart = null;
             editorPendingCutEnd = null;
             editorEstimatedFPS = 30;
@@ -1586,6 +1594,18 @@
                 };
             });
 
+            if (editorDeleteEditThumbsBtn) {
+                editorDeleteEditThumbsBtn.onclick = () => {
+                    editorDeleteEditThumbsFlag = !editorDeleteEditThumbsFlag;
+                    editorDeleteEditThumbsBtn.classList.toggle('active', editorDeleteEditThumbsFlag);
+                    if (editorDeleteEditThumbsFlag) {
+                        editorDeleteEditThumbsBtn.style.backgroundColor = 'rgba(244, 67, 54, 0.3)';
+                    } else {
+                        editorDeleteEditThumbsBtn.style.backgroundColor = '';
+                    }
+                };
+            }
+
             editorTimeline.onmousedown = e => {
                 editorScrubbingMouseDown = true;
                 editorScrubToPosition(e.clientX);
@@ -1636,10 +1656,11 @@
                 selection.markers = JSON.parse(JSON.stringify(editorMarkers));
                 selection.editRotation = finalEditRotation;
                 selection.editFlipped = finalEditFlipped;
+                selection.deleteEditThumbnails = editorDeleteEditThumbsFlag;
                 selection.fps = editorEstimatedFPS;
                 
                 // Track if it was rotated/edited in edit mode in THIS session
-                selection.editModeRotated = editChanged;
+                selection.editModeRotated = editChanged || editorDeleteEditThumbsFlag;
 
                 // Close editor
                 editorModal.style.display = 'none';
@@ -2613,6 +2634,7 @@
                        (sel.markers && sel.markers.length > 0) ||
                        (sel.editRotation && sel.editRotation !== "0") ||
                        (sel.editFlipped) ||
+                       (sel.deleteEditThumbnails) ||
                        (sel.rotation !== initialRot) ||
                        (!!sel.flipped !== initialFlipped);
             });
@@ -2670,7 +2692,8 @@
                 { id: 'shortcuts_delete', title: 'Delete Shortcuts' },
                 { id: 'moves', title: 'File Moves' },
                 { id: 'lua', title: 'LUA Script Updates (Rotations, Flips)' },
-                { id: 'categories', title: 'Category Updates' }
+                { id: 'categories', title: 'Category Updates' },
+                { id: 'thumb_cleanup', title: 'Thumbnail Cleanups' }
             ];
 
             categories.forEach(cat => {
@@ -2706,7 +2729,8 @@
                 shortcuts_delete: [],
                 moves: [],
                 lua: [],
-                categories: []
+                categories: [],
+                thumb_cleanup: []
             };
 
             const displayedProjects = new Map(); // path -> name
@@ -3092,7 +3116,7 @@
                 const hasMetadataChanges = rotationChanged || flippedChanged;
 
                 const selectionType = sel.type;
-                if (!selectionType && !needsProcessing && !hasMetadataChanges && !sel.targetProject) return;
+                if (!selectionType && !needsProcessing && !hasMetadataChanges && !sel.targetProject && !sel.deleteEditThumbnails) return;
                 if (selectionType === 'delete-sc') return;
 
                 const escapedVideoName = escapePSString(sel.videoName);
@@ -3148,6 +3172,19 @@
                 const tnToUse = isMoved ? sel.targetProject : sel.projectName;
                 const targetBaseRes = getPSPathRes('\$BaseDir', tpToUse, tnToUse, sel.subfolder);
                 let targetPathConstruction = `(Join-Path -Path (${targetBaseRes}) -ChildPath '${escapedVideoName}')`;
+
+                if (sel.deleteEditThumbnails) {
+                    summaryActions.thumb_cleanup.push(`${sel.videoName}: Delete Edit Thumbnails`);
+                    const thumbBase = sel.videoName.substring(0, sel.videoName.lastIndexOf('.'));
+                    const escapedThumbBase = escapePSString(thumbBase);
+                    const projRes = getPSPathRes('\$BaseDir', sel.projectPath, sel.projectName, '');
+                    scriptLines.push(`    # Deleting Edit Thumbnails for: ${sel.videoName}`);
+                    scriptLines.push(`    \$editThumbDir = (Join-Path -Path ${projRes} -ChildPath 'Edit Thumbnails')`);
+                    scriptLines.push(`    if (Test-Path -LiteralPath \$editThumbDir) {`);
+                    scriptLines.push(`        Get-ChildItem -LiteralPath \$editThumbDir | Where-Object { \$_.Name -like '${escapedThumbBase}_*' } | Remove-Item -Force`);
+                    scriptLines.push(`        Write-Host "Deleted edit thumbnails for: ${escapedVideoName}"`);
+                    scriptLines.push(`    }`);
+                }
 
                 if (selectionType) {
                     scriptLines.push(`    # Managing shortcuts for: ${sel.projectPath}\\${sel.videoName} (Selection: ${selectionType})`);
