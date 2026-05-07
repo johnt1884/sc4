@@ -2702,6 +2702,7 @@
                 { id: 'shortcuts_new', title: 'New Shortcuts' },
                 { id: 'shortcuts_verify', title: 'Verify Existing Shortcuts' },
                 { id: 'shortcuts_delete', title: 'Delete Shortcuts' },
+                { id: 'file_delete', title: 'File Deletions' },
                 { id: 'moves', title: 'File Moves' },
                 { id: 'lua', title: 'LUA Script Updates (Rotations, Flips)' },
                 { id: 'categories', title: 'Category Updates' },
@@ -2739,6 +2740,7 @@
                 shortcuts_new: [],
                 shortcuts_verify: [],
                 shortcuts_delete: [],
+                file_delete: [],
                 moves: [],
                 lua: [],
                 categories: [],
@@ -2774,6 +2776,7 @@
                 '\$BaseDir = [System.IO.Path]::GetFullPath(\$BaseDir)',
                 '\$wshell = New-Object -ComObject WScript.Shell',
                 '\$newShortcuts = @()',
+                '\$rootScFolder = (Join-Path -Path \"\$BaseDir\" -ChildPath \'sc\')',
                 '',
                 'function Resolve-PSPath {',
                 '    param([string]\$base, [string]\$relPath, [string]\$name, [string]\$sub)',
@@ -3247,10 +3250,15 @@
             if (fileDeletions.length > 0) {
                 scriptLines.push('# --- Deleting Videos and Thumbnails ---');
                 fileDeletions.forEach(sel => {
-                    summaryActions.shortcuts_delete.push(`${sel.videoName} (Permanent Delete)`);
+                    const key = sel.projectPath + '|' + sel.videoName;
+                    const initial = initialShortcutSelections.get(key);
+
+                    summaryActions.file_delete.push(`${sel.videoName} (Permanent Delete)`);
+                    if (initial && initial.type) {
+                        summaryActions.shortcuts_delete.push(`${sel.videoName} (Associated Shortcuts)`);
+                    }
+
                     const escapedVideoName = escapePSString(sel.videoName);
-                    const escapedProjectPath = escapePSString(sel.projectPath);
-                    const escapedSubfolder = escapePSString(sel.subfolder);
                     
                     const res = getPSPathRes('\$BaseDir', sel.projectPath, sel.projectName, sel.subfolder);
                     scriptLines.push(`\$videoPath = (Join-Path -Path (${res}) -ChildPath '${escapedVideoName}')`);
@@ -3273,6 +3281,12 @@
                     scriptLines.push(`        Write-Host "Deleted thumbnails for ${escapedVideoName} in \$dirName"`);
                     scriptLines.push(`    }`);
                     scriptLines.push(`}`);
+
+                    // Also remove any existing shortcuts for this deleted file
+                    scriptLines.push(`\$subfolderScPath = (Join-Path -Path \$projectPath -ChildPath 'sc')`);
+                    scriptLines.push(`Manage-Shortcut -folderPath \$rootScFolder -videoName '${escapedVideoName}' -targetPath '' -shouldExist \$false`);
+                    scriptLines.push(`Manage-Shortcut -folderPath \$subfolderScPath -videoName '${escapedVideoName}' -targetPath '' -shouldExist \$false`);
+
                     scriptLines.push('');
                 });
             }
