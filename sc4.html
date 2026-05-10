@@ -1230,6 +1230,23 @@
                 transform += ' scaleX(-1)';
             }
             editorMainVideo.style.transform = transform;
+
+            // Handle container resizing for vertical rotation (90/270)
+            const isVertical = (editorCurrentAppliedRotation === 90 || editorCurrentAppliedRotation === 270);
+            const container = document.getElementById('editor-videoContainer');
+            if (isVertical) {
+                // Determine height needed for rotated video
+                const videoW = editorMainVideo.videoWidth || 640;
+                const videoH = editorMainVideo.videoHeight || 360;
+                const aspect = videoW / videoH;
+                const availableH = window.innerHeight * 0.6;
+                const neededH = Math.min(availableH, window.innerWidth * 0.9 * aspect);
+                container.style.minHeight = neededH + 'px';
+                editorMainVideo.style.maxWidth = (neededH / aspect) + 'px';
+            } else {
+                container.style.minHeight = '260px';
+                editorMainVideo.style.maxWidth = '90%';
+            }
         }
         function editorGetRotationAt(time) {
             if (!editorMarkers || !editorMarkers.length) return 0;
@@ -3351,10 +3368,7 @@
                     scriptLines.push(`    \$markers = @()`);
                     if (sel.markers) {
                         sel.markers.forEach(m => {
-                            // markers in selection use 'frame', we need 'time'
-                            const fps = sel.fps || 30;
-                            const time = m.frame / fps;
-                            scriptLines.push(`    \$markers += @{ time = ${time}; rotation = ${m.rotation} }`);
+                            scriptLines.push(`    \$markers += @{ time = ${m.time}; rotation = ${m.rotation} }`);
                         });
                     }
                     if ((!sel.markers || sel.markers.length === 0) && sel.editRotation && sel.editRotation !== "0") {
