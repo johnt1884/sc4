@@ -729,20 +729,35 @@
                             <button id="revert-defaults-btn" style="width: 100%; text-align: center; border-top: 1px solid #ccc; font-weight: bold;">Revert to Default Colors</button>
                         </div>
                     </div>
-                    <select id="size-selector">
-                        <option value="auto">Auto Fit</option>
-                        <option value="0.1">10%</option>
-                        <option value="0.2">20%</option>
-                        <option value="0.3">30%</option>
-                        <option value="0.4">40%</option>
-                        <option value="0.5">50%</option>
-                        <option value="0.6">60%</option>
-                        <option value="0.7">70%</option>
-                        <option value="0.8">80%</option>
-                        <option value="0.85">85%</option>
-                        <option value="0.9">90%</option>
-                        <option value="1" selected>100%</option>
-                        <option value="custom">Custom</option>
+                    <select id="h-size-selector" title="Horizontal Thumbnail Size">
+                        <option value="auto">H Auto</option>
+                        <option value="0.1">H 10%</option>
+                        <option value="0.2">H 20%</option>
+                        <option value="0.3">H 30%</option>
+                        <option value="0.4">H 40%</option>
+                        <option value="0.5">H 50%</option>
+                        <option value="0.6">H 60%</option>
+                        <option value="0.7">H 70%</option>
+                        <option value="0.8">H 80%</option>
+                        <option value="0.85">H 85%</option>
+                        <option value="0.9">H 90%</option>
+                        <option value="1" selected>H 100%</option>
+                        <option value="custom">H Custom</option>
+                    </select>
+                    <select id="v-size-selector" title="Vertical Thumbnail Size">
+                        <option value="auto">V Auto</option>
+                        <option value="0.1">V 10%</option>
+                        <option value="0.2">V 20%</option>
+                        <option value="0.3">V 30%</option>
+                        <option value="0.4">V 40%</option>
+                        <option value="0.5">V 50%</option>
+                        <option value="0.6">V 60%</option>
+                        <option value="0.7">V 70%</option>
+                        <option value="0.8">V 80%</option>
+                        <option value="0.85">V 85%</option>
+                        <option value="0.9">V 90%</option>
+                        <option value="1" selected>V 100%</option>
+                        <option value="custom">V Custom</option>
                     </select>
                     <input type="number" id="custom-size-input" style="display:none; width: 60px; height: 28px; background-color: var(--top-bar-color); color: white; border: 1px solid #444444; margin-left: 5px; text-align: center;" placeholder="%" min="1" max="500">
                     <select id="sort-selector">
@@ -868,7 +883,8 @@
         const batchScriptTextArea = document.getElementById('batch-script');
         const copyScriptBtn = document.getElementById('copy-script-btn');
         const downloadScriptLink = document.getElementById('download-script-link');
-        const sizeSelector = document.getElementById('size-selector');
+        const hSizeSelector = document.getElementById('h-size-selector');
+        const vSizeSelector = document.getElementById('v-size-selector');
         const customSizeInput = document.getElementById('custom-size-input');
         const sortSelector = document.getElementById('sort-selector');
         const loadButton = document.getElementById('load-directory-btn');
@@ -1628,6 +1644,9 @@
                     } else {
                         editorFlipBtn.style.backgroundColor = '';
                     }
+                    // Update viewer immediately
+                    const rot = editorGetRotationAt(editorMainVideo.currentTime);
+                    editorApplyRotationToViewer(rot, editorCurrentAppliedFlip);
                 };
             }
 
@@ -1982,8 +2001,18 @@
                 scriptModal.style.display = 'block';
             });
 
-            sizeSelector.addEventListener('change', () => {
-                if (sizeSelector.value === 'custom') {
+            hSizeSelector.addEventListener('change', () => {
+                if (hSizeSelector.value === 'custom' || vSizeSelector.value === 'custom') {
+                    customSizeInput.style.display = 'inline-block';
+                    if (!customSizeInput.value) customSizeInput.value = 100;
+                } else {
+                    customSizeInput.style.display = 'none';
+                }
+                saveCurrentSizeForProject();
+                layoutLandscapeThumbnails();
+            });
+            vSizeSelector.addEventListener('change', () => {
+                if (hSizeSelector.value === 'custom' || vSizeSelector.value === 'custom') {
                     customSizeInput.style.display = 'inline-block';
                     if (!customSizeInput.value) customSizeInput.value = 100;
                 } else {
@@ -2212,8 +2241,9 @@
             const canvas = canvases.get(activeCanvasId);
             if (canvas.path !== undefined) {
                 const config = {
-                    size: sizeSelector.value,
-                    custom: sizeSelector.value === 'custom' ? customSizeInput.value : null
+                    hSize: hSizeSelector.value,
+                    vSize: vSizeSelector.value,
+                    custom: (hSizeSelector.value === 'custom' || vSizeSelector.value === 'custom') ? customSizeInput.value : null
                 };
                 localStorage.setItem(`proj-size-${canvas.path}`, JSON.stringify(config));
             }
@@ -2243,8 +2273,9 @@
                 const saved = localStorage.getItem(`proj-size-${canvas.path}`);
                 if (saved) {
                     const config = JSON.parse(saved);
-                    sizeSelector.value = config.size;
-                    if (config.size === 'custom') {
+                    hSizeSelector.value = config.hSize || config.size || "1";
+                    vSizeSelector.value = config.vSize || config.size || "1";
+                    if (config.hSize === 'custom' || config.vSize === 'custom' || config.size === 'custom') {
                         customSizeInput.style.display = 'inline-block';
                         customSizeInput.value = config.custom;
                     } else {
@@ -2252,7 +2283,8 @@
                     }
                 } else {
                     // Default for projects not yet customized
-                    sizeSelector.value = "1";
+                    hSizeSelector.value = "1";
+                    vSizeSelector.value = "1";
                     customSizeInput.style.display = 'none';
                 }
             }
@@ -2665,15 +2697,17 @@
             if (enableCategoriesPanelCheckbox.checked && categoriesPanel.style.display !== 'none') {
                 containerWidth -= categoriesPanel.offsetWidth;
             }
-            const isAuto = sizeSelector.value === 'auto';
-            const isCustom = sizeSelector.value === 'custom';
-            let globalScale = 1.0;
-            
-            if (isCustom) {
-                globalScale = (parseFloat(customSizeInput.value) || 100) / 100;
-            } else if (!isAuto) {
-                globalScale = parseFloat(sizeSelector.value);
-            }
+
+            const getScale = (selector) => {
+                const isAuto = selector.value === 'auto';
+                const isCustom = selector.value === 'custom';
+                if (isCustom) return (parseFloat(customSizeInput.value) || 100) / 100;
+                if (!isAuto) return parseFloat(selector.value);
+                return null; // Will calculate auto scale
+            };
+
+            let hScale = getScale(hSizeSelector);
+            let vScale = getScale(vSizeSelector);
 
             let standardWidth = 320;
             let standardHeight = 180;
@@ -2686,34 +2720,26 @@
                 const heights = allThumbs.map(t => parseFloat(t.dataset.originalHeight)).sort((a, b) => a - b);
                 standardWidth = widths[Math.floor(widths.length / 2)];
                 standardHeight = heights[Math.floor(heights.length / 2)];
-
-                // Use a thumbnail that matches standardWidth as our reference for rotation checks
                 referenceThumb = allThumbs.find(t => parseFloat(t.dataset.originalWidth) === standardWidth) || allThumbs[0];
             }
 
-            if (isAuto) {
-                const ow = standardWidth;
-                const oh = standardHeight;
-                const isRot90 = referenceThumb ? (referenceThumb.classList.contains('rotate-90') || referenceThumb.classList.contains('rotate-270')) : false;
-                const refW = isRot90 ? oh : ow;
-
-                // Available width for content inside thumbnails-container
-                // Thumbnails are inside landscape-row which is 100% width.
-                // thumbnails-container has padding: 10px 20px
+            const calcAutoScale = (refW) => {
                 const availableW = containerWidth - (paddingLR * 2) - 10; 
-                
-                // Target: 10 items per row, but min 210px each.
                 let numToFit = 10;
                 let targetScaledW = (availableW - (9 * 10)) / 10;
-                
                 if (targetScaledW < 210) {
-                    // Fit as many as possible at 210px
                     numToFit = Math.floor((availableW + 10) / (210 + 10));
                     if (numToFit < 1) numToFit = 1;
                     targetScaledW = (availableW - ((numToFit - 1) * 10)) / numToFit;
                 }
-                
-                globalScale = targetScaledW / refW;
+                return targetScaledW / refW;
+            };
+
+            if (hScale === null || vScale === null) {
+                const isRot90 = referenceThumb ? (referenceThumb.classList.contains('rotate-90') || referenceThumb.classList.contains('rotate-270')) : false;
+                const auto = calcAutoScale(isRot90 ? standardHeight : standardWidth);
+                if (hScale === null) hScale = auto;
+                if (vScale === null) vScale = auto;
             }
 
             elements.forEach(element => {
@@ -2726,18 +2752,19 @@
                         let originalWidth = parseFloat(thumb.dataset.originalWidth);
                         let originalHeight = parseFloat(thumb.dataset.originalHeight);
 
-                        // Fix for supersized images (e.g. full-size last frame):
-                        // If this image is significantly larger than the first thumbnail, normalize its dimensions
                         if (originalWidth > standardWidth * 1.2 || originalHeight > standardHeight * 1.2) {
                             const scale = Math.min(standardWidth / originalWidth, standardHeight / originalHeight);
                             originalWidth *= scale;
                             originalHeight *= scale;
                         }
 
-                        const scaledWidth = originalWidth * globalScale;
-                        const scaledHeight = originalHeight * globalScale;
-                        
                         const isRotated90 = thumb.classList.contains('rotate-90') || thumb.classList.contains('rotate-270');
+                        // Effective orientation after rotation
+                        const isCurrentlyVertical = isRotated90 ? (originalWidth > originalHeight) : (originalHeight > originalWidth);
+                        const currentScale = isCurrentlyVertical ? vScale : hScale;
+
+                        const scaledWidth = originalWidth * currentScale;
+                        const scaledHeight = originalHeight * currentScale;
                         
                         if (isRotated90) {
                             wrapper.style.width = scaledHeight + 'px';
