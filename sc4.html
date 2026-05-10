@@ -604,10 +604,13 @@
         #editor-modal .modal-content {
             background-color: #121212;
             color: #eee;
-            width: 95%;
-            max-width: 1200px;
+            width: 100%;
+            height: 100%;
+            max-width: none;
+            max-height: none;
             padding: 18px;
-            border-radius: 8px;
+            border-radius: 0;
+            margin: 0;
         }
         .editor-app { display: flex; flex-direction: column; align-items: center; gap: 12px; }
         #editor-fileInfo { font-size: 14px; color: #ddd; }
@@ -616,9 +619,32 @@
         #editor-playerWrap { display: flex; flex-direction: column; align-items: center; width: 100%; }
         #editor-videoContainer { width: 100%; display: flex; align-items: center; justify-content: center; min-height: 260px; position: relative; }
         #editor-videoOverlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); pointer-events: none; display: none; z-index: 10; }
-        #editor-mainVideo { max-width: 90%; max-height: 60vh; background: black; border-radius: 6px; object-fit: contain; }
+        #editor-mainVideo { max-width: 95%; max-height: 75vh; background: black; border-radius: 6px; object-fit: contain; }
         #editor-timelineWrap { width: 98%; position: relative; user-select: none; margin-top: 10px; }
-        #editor-timeline { height: 18px; background: #333; border-radius: 9px; position: relative; cursor: pointer; margin-bottom: 36px; }
+        #editor-timeline { height: 18px; background: #333; border-radius: 9px; position: relative; cursor: pointer; margin-bottom: 20px; }
+        #editor-frameTimeline {
+            width: 98%;
+            height: 40px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            background: #222;
+            border-radius: 4px;
+            padding: 0 10px;
+            box-sizing: border-box;
+        }
+        .frame-marker {
+            cursor: pointer;
+            text-align: center;
+            flex: 1;
+            font-size: 11px;
+            color: #888;
+            padding: 5px 0;
+            border-radius: 3px;
+        }
+        .frame-marker:hover { background: #333; color: #fff; }
+        .frame-marker.active { color: #00acc1; font-weight: bold; background: #2a2a2a; border: 1px solid #00acc1; }
         #editor-scrubber { position: absolute; top: 50%; left: 0; width: 22px; height: 22px; background: #fff; border-radius: 50%; transform: translate(-50%, -50%); cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,.5); }
         #editor-progress { position: absolute; left: 0; top: 0; height: 100%; background: #00acc1; border-radius: 9px; width: 0%; }
         .editor-marker { position: absolute; top: 0; width: 6px; height: 18px; transform: translateX(-50%); border-radius: 3px; box-shadow: 0 0 4px rgba(0,0,0,.6); }
@@ -825,6 +851,7 @@
                             <div id="editor-scrubber"></div>
                         </div>
                     </div>
+                    <div id="editor-frameTimeline"></div>
                     <div id="editor-frameControls" class="editor-control-group" style="margin-bottom: 8px;">
                         <button id="editor-frameBackBtn" class="editor-frame-btn">←</button>
                         <button id="editor-frameForwardBtn" class="editor-frame-btn">→</button>
@@ -832,6 +859,7 @@
                     <div id="editor-controls">
                         <div class="editor-control-group" style="justify-content:flex-start">
                             <button id="editor-playPause" class="bar-button">▶️ Play</button>
+                            <button id="editor-deleteFrameBtn" class="bar-button" style="border-color:#f44336">Delete Frame</button>
                         </div>
                         <div class="editor-control-group">
                             <button id="editor-markStartBtn" class="bar-button" style="border-color:#43a047">Mark Start</button>
@@ -919,6 +947,7 @@
         const editorScrubber = document.getElementById('editor-scrubber');
         const editorPlayPauseBtn = document.getElementById('editor-playPause');
         const editorTimeDisplay = document.getElementById('editor-timeDisplay');
+        const editorFrameTimeline = document.getElementById('editor-frameTimeline');
         const editorMarkStartBtn = document.getElementById('editor-markStartBtn');
         const editorMarkEndBtn = document.getElementById('editor-markEndBtn');
         const editorCutSegmentBtn = document.getElementById('editor-cutSegmentBtn');
@@ -934,6 +963,7 @@
         const editorFlipBtn = document.getElementById('editor-flipBtn');
         const editorDeleteEditThumbsBtn = document.getElementById('editor-deleteEditThumbsBtn');
         const editorResetBtn = document.getElementById('editor-resetBtn');
+        const editorDeleteFrameBtn = document.getElementById('editor-deleteFrameBtn');
         let selectedVideoKey = null;
 
         const prevCanvasBtn = document.getElementById('prev-canvas-btn');
@@ -1314,6 +1344,39 @@
                 editorTimeline.appendChild(del);
             });
         }
+        function updateFrameTimeline() {
+            if (!editorFrameTimeline || !editorMainVideo.duration) return;
+            const currentTime = editorMainVideo.currentTime;
+            const currentFrame = editorTimeToFrame(currentTime);
+            const totalFrames = editorTimeToFrame(editorMainVideo.duration);
+
+            let startFrame = currentFrame - 5;
+            let endFrame = currentFrame + 5;
+
+            if (startFrame < 0) {
+                endFrame -= startFrame; // add the deficit to end
+                startFrame = 0;
+            }
+            if (endFrame > totalFrames) {
+                startFrame -= (endFrame - totalFrames); // add surplus to start
+                endFrame = totalFrames;
+            }
+            if (startFrame < 0) startFrame = 0; // double check
+
+            editorFrameTimeline.innerHTML = '';
+            for (let f = startFrame; f <= endFrame; f++) {
+                const marker = document.createElement('div');
+                marker.className = 'frame-marker';
+                if (f === currentFrame) marker.classList.add('active');
+                marker.textContent = f;
+                marker.onclick = () => {
+                    editorMainVideo.currentTime = editorFrameToTime(f);
+                    updateFrameTimeline();
+                };
+                editorFrameTimeline.appendChild(marker);
+            }
+        }
+
         function editorRenderLoop(now, metadata) {
             if (!editorMainVideo.duration) return;
             const currentTime = metadata.mediaTime;
@@ -1337,6 +1400,7 @@
             editorTimeDisplay.textContent = `${editorFmtTime(currentTime)} / ${editorFmtTime(editorMainVideo.duration)}`;
             const rot = editorGetRotationAt(currentTime);
             editorApplyRotationToViewer(rot);
+            updateFrameTimeline();
             const isCut = editorCurrentCuts.some(cut => currentTime >= cut.start && currentTime < cut.end);
             editorVideoOverlay.style.display = isCut ? 'block' : 'none';
             editorMainVideo.requestVideoFrameCallback(editorRenderLoop);
@@ -1607,6 +1671,15 @@
                 }
             });
 
+            if (editorDeleteFrameBtn) {
+                editorDeleteFrameBtn.onclick = () => {
+                    const start = editorMainVideo.currentTime;
+                    const end = start + editorFrameOffset;
+                    editorCurrentCuts.push({ start: start, end: end });
+                    editorUpdateUI();
+                };
+            }
+
             editorMarkStartBtn.onclick = () => {
                 editorPendingCutStart = editorMainVideo.currentTime;
                 if (editorPendingCutEnd !== null && editorPendingCutEnd < editorPendingCutStart) {
@@ -1632,6 +1705,17 @@
 
             editorFrameBackBtn.onclick = () => editorMainVideo.currentTime -= editorFrameOffset;
             editorFrameForwardBtn.onclick = () => editorMainVideo.currentTime += editorFrameOffset;
+
+            editorModal.addEventListener('wheel', (e) => {
+                if (editorModal.style.display === 'flex') {
+                    e.preventDefault();
+                    if (e.deltaY < 0) {
+                        editorMainVideo.currentTime -= editorFrameOffset;
+                    } else {
+                        editorMainVideo.currentTime += editorFrameOffset;
+                    }
+                }
+            }, { passive: false });
 
             [editorRotLeftBtn, editorRot180Btn, editorRotRightBtn].forEach(b => {
                 b.onclick = () => {
