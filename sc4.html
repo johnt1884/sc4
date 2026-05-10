@@ -739,6 +739,7 @@
                         <option value="0.6">60%</option>
                         <option value="0.7">70%</option>
                         <option value="0.8">80%</option>
+                        <option value="0.85">85%</option>
                         <option value="0.9">90%</option>
                         <option value="1" selected>100%</option>
                         <option value="custom">Custom</option>
@@ -823,6 +824,7 @@
                             <button id="editor-rot180" class="bar-button" style="border-color:#ffca28">180°</button>
                             <button id="editor-rotRight" class="bar-button" style="border-color:#ff4081">90° Right</button>
                             <button id="editor-markEndBtn" class="bar-button" style="border-color:#43a047">Mark End</button>
+                            <button id="editor-flipBtn" class="bar-button">Flip H</button>
                             <button id="editor-cutSegmentBtn" class="bar-button" style="background:#d32f2f;color:white" disabled>Cut Segment</button>
                             <button id="editor-deleteEditThumbsBtn" class="bar-button" style="border-color:#f44336">Delete Edit Thumbnails</button>
                         </div>
@@ -913,6 +915,7 @@
         const editorRotRightBtn = document.getElementById('editor-rotRight');
         const editorVideoOverlay = document.getElementById('editor-videoOverlay');
         const editorFileInfo = document.getElementById('editor-fileInfo');
+        const editorFlipBtn = document.getElementById('editor-flipBtn');
         const editorDeleteEditThumbsBtn = document.getElementById('editor-deleteEditThumbsBtn');
         const editorResetBtn = document.getElementById('editor-resetBtn');
         let selectedVideoKey = null;
@@ -1265,7 +1268,6 @@
                 mark.onclick = (e) => {
                     e.stopPropagation();
                     editorMainVideo.currentTime = t;
-                    editorApplyRotationToViewer(m.rotation);
                 };
                 editorTimeline.appendChild(mark);
 
@@ -1509,6 +1511,11 @@
             editorCurrentAppliedRotation = (selection && selection.editRotation) ? parseInt(selection.editRotation) : 0;
             editorDeleteEditThumbsFlag = selection ? !!selection.deleteEditThumbnails : false;
 
+            if (editorFlipBtn) {
+                editorFlipBtn.classList.toggle('active', editorCurrentAppliedFlip);
+                editorFlipBtn.style.backgroundColor = editorCurrentAppliedFlip ? 'rgba(255, 255, 255, 0.2)' : '';
+            }
+
             if (editorDeleteEditThumbsBtn) {
                 editorDeleteEditThumbsBtn.classList.toggle('active', editorDeleteEditThumbsFlag);
                 editorDeleteEditThumbsBtn.style.backgroundColor = editorDeleteEditThumbsFlag ? 'rgba(244, 67, 54, 0.3)' : '';
@@ -1598,14 +1605,31 @@
             [editorRotLeftBtn, editorRot180Btn, editorRotRightBtn].forEach(b => {
                 b.onclick = () => {
                     const d = b.id === 'editor-rotLeft' ? 270 : b.id === 'editor-rot180' ? 180 : 90;
-                    const nr = (editorCurrentAppliedRotation + d) % 360;
-                    editorApplyRotationToViewer(nr);
-                    const currentFrame = editorTimeToFrame(editorMainVideo.currentTime);
+                    const currentTime = editorMainVideo.currentTime;
+                    const currentFrame = editorTimeToFrame(currentTime);
+                    const currentRot = editorGetRotationAt(currentTime);
+                    const nr = (currentRot + d) % 360;
+
+                    // Deduplicate markers at current frame
+                    editorMarkers = editorMarkers.filter(m => m.frame !== currentFrame);
                     editorMarkers.push({ frame: currentFrame, rotation: nr });
                     editorMarkers.sort((a, b) => a.frame - b.frame);
+
                     editorRenderMarkers();
                 };
             });
+
+            if (editorFlipBtn) {
+                editorFlipBtn.onclick = () => {
+                    editorCurrentAppliedFlip = !editorCurrentAppliedFlip;
+                    editorFlipBtn.classList.toggle('active', editorCurrentAppliedFlip);
+                    if (editorCurrentAppliedFlip) {
+                        editorFlipBtn.style.backgroundColor = 'rgba(255, 255, 255, 0.2)';
+                    } else {
+                        editorFlipBtn.style.backgroundColor = '';
+                    }
+                };
+            }
 
             if (editorDeleteEditThumbsBtn) {
                 editorDeleteEditThumbsBtn.onclick = () => {
