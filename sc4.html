@@ -741,8 +741,8 @@
                         <option value="0.8">H 80%</option>
                         <option value="0.85">H 85%</option>
                         <option value="0.9">H 90%</option>
-                        <option value="1" selected>H 100%</option>
-                        <option value="custom">H Custom</option>
+                        <option value="1">H 100%</option>
+                        <option value="custom" selected>H Custom</option>
                     </select>
                     <select id="v-size-selector" title="Vertical Thumbnail Size">
                         <option value="auto">V Auto</option>
@@ -754,12 +754,12 @@
                         <option value="0.6">V 60%</option>
                         <option value="0.7">V 70%</option>
                         <option value="0.8">V 80%</option>
-                        <option value="0.85">V 85%</option>
+                        <option value="0.85" selected>V 85%</option>
                         <option value="0.9">V 90%</option>
-                        <option value="1" selected>V 100%</option>
+                        <option value="1">V 100%</option>
                         <option value="custom">V Custom</option>
                     </select>
-                    <input type="number" id="custom-size-input" style="display:none; width: 60px; height: 28px; background-color: var(--top-bar-color); color: white; border: 1px solid #444444; margin-left: 5px; text-align: center;" placeholder="%" min="1" max="500">
+                    <input type="number" id="custom-size-input" style="display:inline-block; width: 60px; height: 28px; background-color: var(--top-bar-color); color: white; border: 1px solid #444444; margin-left: 5px; text-align: center;" placeholder="%" min="1" max="500" value="150">
                     <select id="sort-selector">
                         <option value="" disabled selected hidden>Sort</option>
                         <option value="name-asc">Name (A-Z)</option>
@@ -2283,9 +2283,10 @@
                     }
                 } else {
                     // Default for projects not yet customized
-                    hSizeSelector.value = "1";
-                    vSizeSelector.value = "1";
-                    customSizeInput.style.display = 'none';
+                    hSizeSelector.value = "custom";
+                    vSizeSelector.value = "0.85";
+                    customSizeInput.value = "150";
+                    customSizeInput.style.display = 'inline-block';
                 }
             }
 
