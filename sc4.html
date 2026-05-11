@@ -1864,6 +1864,10 @@
                 // Track if it was edited in edit mode
                 selection.editModeRotated = editChanged || editorDeleteEditThumbsFlag;
 
+                // Clear loaded persistent flags as they are now superseded by session edits
+                selection.loadedEditRotated = false;
+                selection.loadedHasCuts = false;
+
                 // Override persistence map for current session
                 if (editModeRotatedVideos.has(key)) {
                     editModeRotatedVideos.delete(key);
@@ -2442,8 +2446,13 @@
                     nameSpan.innerHTML = '';
 
                     const hasUiRotation = selection && selection.rotation !== "0";
-                    const hasEditRotation = selection && selection.editRotationType && selection.editRotationType !== 'none';
-                    const editChanged = selection && selection.editModeRotated;
+                    const hasSessionEditRot = selection && selection.editRotationType && selection.editRotationType !== 'none';
+                    const hasSessionEditCuts = selection && selection.cuts && selection.cuts.length > 0;
+
+                    const hasEditRotation = hasSessionEditRot || (selection && selection.loadedEditRotated);
+                    const hasAnyCuts = hasSessionEditCuts || (selection && selection.loadedHasCuts);
+
+                    const editChanged = (selection && selection.editModeRotated) || (selection && (selection.loadedEditRotated || selection.loadedHasCuts));
 
                     if (hasUiRotation || editChanged) {
                         const icon = document.createElement('span');
@@ -2466,7 +2475,9 @@
                         // Tooltip logic
                         let tooltipParts = [];
                         if (hasUiRotation) tooltipParts.push(`UI Rotation: ${selection.rotation}°`);
+
                         if (selection && selection.editModeRotated) {
+                            // Current session details
                             if (selection.editRotationType === 'uniform') {
                                 tooltipParts.push(`Edit Rotation: ${selection.editRotation}° (Uniform, Full-length)`);
                             } else if (selection.editRotationType === 'complex') {
@@ -2475,6 +2486,10 @@
                             if (selection.editFlipped) tooltipParts.push(`Edit Flip: ON`);
                             if (selection.cuts && selection.cuts.length > 0) tooltipParts.push(`Cuts: ${selection.cuts.length}`);
                             if (selection.deleteEditThumbnails) tooltipParts.push(`Delete Edit Thumbs: YES`);
+                        } else if (selection && (selection.loadedEditRotated || selection.loadedHasCuts)) {
+                            // Persistent flags from previous session
+                            if (selection.loadedEditRotated) tooltipParts.push('Edit Mode: Rotated in previous session');
+                            if (selection.loadedHasCuts) tooltipParts.push('Edit Mode: Has segments cut');
                         } else if (editModeRotatedVideos.get(key)) {
                             tooltipParts.push(`Edit Mode: Edited in previous session`);
                         }
@@ -2519,7 +2534,7 @@
 
             const editBtn = rowDiv.querySelector('.edit-btn');
             if (editBtn) {
-                if (selection && selection.cuts && selection.cuts.length > 0) {
+                if (hasAnyCuts) {
                     editBtn.style.backgroundColor = 'var(--edit-cuts-color)';
                 } else {
                     editBtn.style.backgroundColor = '';
@@ -3690,27 +3705,28 @@
                     dataParts.push(`cats:${Array.from(cats).join(',')}`);
                 }
 
-                // Detailed edit rotation state persistence
+                // Minimal edit state persistence (only flags for UI icons)
+                const hasSessionRotation = sel && sel.editRotationType && sel.editRotationType !== 'none';
+                const hasSessionCuts = sel && sel.cuts && sel.cuts.length > 0;
+                const hasSessionOther = sel && (sel.deleteEditThumbnails || sel.editFlipped);
+
+                // Note: editModeRotatedVideos is a Map of loaded strings or booleans
+                const hasLoadedEdit = editModeRotatedVideos.has(key);
+
+                // If it was edited in THIS session, use session state
                 if (sel && sel.editModeRotated) {
-                    if (sel.editRotationType && sel.editRotationType !== 'none') {
-                        dataParts.push(`edit_rot:${sel.editRotationType}|${sel.editRotation}|${sel.isFullLength ? '1' : '0'}`);
-                        if (sel.editRotationType === 'complex' && sel.markers) {
-                            const markersStr = sel.markers.map(m => `${m.time.toFixed(3)}@${m.rotation}`).join(',');
-                            dataParts.push(`markers:${markersStr}`);
-                        }
-                    }
-                    if (sel.cuts && sel.cuts.length > 0) {
-                        const cutsStr = sel.cuts.map(c => `${c.start.toFixed(3)}-${c.end.toFixed(3)}`).join(',');
-                        dataParts.push(`cuts:${cutsStr}`);
-                    }
-                    if (sel.deleteEditThumbnails || sel.editFlipped) {
+                    if (hasSessionRotation) dataParts.push('edit_rotated:true');
+                    if (hasSessionCuts) dataParts.push('has_cuts:true');
+                    if (!hasSessionRotation && !hasSessionCuts && hasSessionOther) dataParts.push('edit_rotated:true');
+                } else if (hasLoadedEdit) {
+                    // Restore loaded flags if not overwritten by a session commit
+                    const existing = editModeRotatedVideos.get(key);
+                    if (typeof existing === 'string') {
+                        if (existing.includes('edit_rot:') || existing.includes('edit_rotated:true')) dataParts.push('edit_rotated:true');
+                        if (existing.includes('cuts:') || existing.includes('has_cuts:true')) dataParts.push('has_cuts:true');
+                    } else {
                         dataParts.push('edit_rotated:true');
                     }
-                } else if (editModeRotatedVideos.has(key)) {
-                    // Restore complex/legacy state if not re-edited
-                    const existing = editModeRotatedVideos.get(key);
-                    if (typeof existing === 'string') dataParts.push(existing);
-                    else dataParts.push('edit_rotated:true');
                 }
                 
                 if (dataParts.length > 0) {
@@ -4017,12 +4033,14 @@
                                     });
                                     initialVideoCategories.set(key, new Set(cats));
                                 }
-                            } else if (part === 'edit_rotated:true' || part.startsWith('edit_rot:') || part.startsWith('cuts:') || part.startsWith('markers:')) {
-                                // Store structured info for updateRowUI to use on load
-                                if (part.startsWith('edit_rot:') || part.startsWith('cuts:') || part.startsWith('markers:')) {
+                            } else if (part === 'edit_rotated:true' || part === 'has_cuts:true' || part.startsWith('edit_rot:') || part.startsWith('cuts:') || part.startsWith('markers:')) {
+                                // Track existence for UI but do not populate details
+                                if (!editModeRotatedVideos.has(key)) {
                                     editModeRotatedVideos.set(key, part);
                                 } else {
-                                    editModeRotatedVideos.set(key, true);
+                                    // Combine flags if multiple exist
+                                    const existing = editModeRotatedVideos.get(key);
+                                    editModeRotatedVideos.set(key, existing + '|' + part);
                                 }
 
                                 if (!shortcutSelections.has(key)) {
@@ -4030,37 +4048,16 @@
                                         videoName: videoName,
                                         projectPath: projectPath,
                                         subfolder: '',
-                                        type: '', rotation: "0", flipped: false,
-                                        editModeRotated: true
+                                        type: '', rotation: "0", flipped: false
                                     });
                                 }
                                 const sel = shortcutSelections.get(key);
 
-                                if (part.startsWith('edit_rot:')) {
-                                    const val = part.substring(9);
-                                    const bits = val.split('|');
-                                    if (bits.length >= 2) {
-                                        sel.editRotationType = bits[0];
-                                        sel.editRotation = bits[1];
-                                        sel.isFullLength = bits[2] === '1';
-
-                                        // Ensure uniform edits have a marker for the editor
-                                        if (sel.editRotationType === 'uniform' && (!sel.markers || sel.markers.length === 0)) {
-                                            sel.markers = [{ time: 0, rotation: parseInt(sel.editRotation) }];
-                                        }
-                                    }
-                                } else if (part.startsWith('cuts:')) {
-                                    const cutsVal = part.substring(5);
-                                    sel.cuts = cutsVal.split(',').map(pair => {
-                                        const times = pair.split('-');
-                                        return { start: parseFloat(times[0]), end: parseFloat(times[1]) };
-                                    });
-                                } else if (part.startsWith('markers:')) {
-                                    const markersVal = part.substring(8);
-                                    sel.markers = markersVal.split(',').map(m => {
-                                        const bits = m.split('@');
-                                        return { time: parseFloat(bits[0]), rotation: parseInt(bits[1]) };
-                                    });
+                                if (part.startsWith('edit_rot:') || part === 'edit_rotated:true') {
+                                    sel.loadedEditRotated = true;
+                                }
+                                if (part.startsWith('cuts:') || part === 'has_cuts:true') {
+                                    sel.loadedHasCuts = true;
                                 }
                             }
                         });
