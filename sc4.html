@@ -2427,13 +2427,8 @@
             const selection = shortcutSelections.get(key);
             const type = selection ? selection.type : '';
 
-            // Logic for visual thumbnail rotation
-            let softRotation = parseInt(selection ? selection.rotation : "0");
-            let hardUniformRotation = 0;
-            if (selection && selection.editRotationType === 'uniform' && selection.isFullLength) {
-                hardUniformRotation = parseInt(selection.editRotation);
-            }
-            const visualRotation = (softRotation + hardUniformRotation) % 360;
+            // Logic for visual thumbnail rotation (Main view thumbnails only follow UI rotation)
+            let visualRotation = parseInt(selection ? selection.rotation : "0");
             const visualRotationStr = visualRotation === 0 ? "0" : visualRotation.toString();
 
             const flipped = selection ? !!selection.flipped : false;
@@ -2986,7 +2981,8 @@
             container.innerHTML = '';
 
             const categories = [
-                { id: 'edits', title: 'Video Edits (Rotations, Flips, Cuts)' },
+                { id: 'edits', title: 'New Video Edits (Current Session)' },
+                { id: 'prior_edits', title: 'Prior Edits (Recorded in Misc Data)' },
                 { id: 'shortcuts_new', title: 'New Shortcuts' },
                 { id: 'shortcuts_verify', title: 'Verify Existing Shortcuts' },
                 { id: 'shortcuts_delete', title: 'Delete Shortcuts' },
@@ -3025,6 +3021,7 @@
             const selectionsToProcess = Array.from(shortcutSelections.values());
             const summaryActions = {
                 edits: [],
+                prior_edits: [],
                 shortcuts_new: [],
                 shortcuts_verify: [],
                 shortcuts_delete: [],
@@ -3442,13 +3439,24 @@
                 const editRotationChanged = sel.editRotation && sel.editRotation !== "0";
                 const editFlippedChanged = !!sel.editFlipped;
 
-                const needsProcessing = hasCuts || markersChanged || editRotationChanged || editFlippedChanged;
+                const needsProcessing = (hasCuts || markersChanged || editRotationChanged || editFlippedChanged) && sel.editModeRotated;
 
                 const rotationChanged = sel.rotation !== initialRot;
                 const flippedChanged = !!sel.flipped !== initialFlipped;
                 const hasMetadataChanges = rotationChanged || flippedChanged;
 
                 const selectionType = sel.type;
+
+                // Prior edits that aren't being re-processed this session
+                if (!sel.editModeRotated && (hasCuts || markersChanged || editRotationChanged || editFlippedChanged)) {
+                    let priorDesc = `${sel.videoName} (`;
+                    if (sel.editRotation && sel.editRotation !== "0") priorDesc += `Rot ${sel.editRotation}°, `;
+                    if (sel.editFlipped) priorDesc += "Flip, ";
+                    if (sel.cuts && sel.cuts.length > 0) priorDesc += `${sel.cuts.length} Cuts, `;
+                    priorDesc = priorDesc.replace(/, $/, ")").replace(/\($/, "");
+                    summaryActions.prior_edits.push(priorDesc);
+                }
+
                 if (!selectionType && !needsProcessing && !hasMetadataChanges && !sel.targetProject && !sel.deleteEditThumbnails) return;
                 if (selectionType === 'delete-sc') return;
 
@@ -3467,7 +3475,7 @@
                     editDesc = editDesc.replace(/, $/, ")").replace(/\($/, "");
                     summaryActions.edits.push(editDesc);
 
-                    scriptLines.push(`    # Processing edits for: ${sel.projectPath}\\${sel.videoName}`);
+                    scriptLines.push(`    # Processing edits for: ${sel.projectPath}\\${sel.videoName} (New session edits)`);
                     const projToUse = isMoved ? sel.targetProject : sel.projectPath;
                     const nameToUse = isMoved ? sel.targetProject : sel.projectName;
                     const res = getPSPathRes('\$BaseDir', projToUse, nameToUse, sel.subfolder);
