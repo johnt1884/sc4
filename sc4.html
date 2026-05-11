@@ -2925,13 +2925,11 @@
                 const initialRot = (initial && initial.rotation) || "0";
                 const initialFlipped = initial ? !!initial.flipped : false;
                 
-                return (sel.cuts && sel.cuts.length > 0) || 
-                       (sel.markers && sel.markers.length > 0) ||
-                       (sel.editRotation && sel.editRotation !== "0") ||
-                       (sel.editFlipped) ||
-                       (sel.deleteEditThumbnails) ||
-                       (sel.rotation !== initialRot) ||
-                       (!!sel.flipped !== initialFlipped);
+                // Only count edits if they were made in the current session OR if it's a UI metadata change
+                const isSessionEdit = sel.editModeRotated;
+                const isMetadataChange = (sel.rotation !== initialRot) || (!!sel.flipped !== initialFlipped);
+
+                return isSessionEdit || isMetadataChange || sel.deleteEditThumbnails;
             });
 
             const hasNewSelections = Array.from(shortcutSelections.entries()).some(([key, sel]) => {
@@ -3494,7 +3492,8 @@
                         });
                     }
                     if ((!sel.markers || sel.markers.length === 0) && sel.editRotation && sel.editRotation !== "0") {
-                        scriptLines.push(`    \$markers += @{ time = 0; rotation = ${sel.editRotation} }`);
+                        const rotNum = parseInt(sel.editRotation) || 0;
+                        scriptLines.push(`    \$markers += @{ time = 0; rotation = ${rotNum} }`);
                     }
 
                     scriptLines.push(`    \$processedVideoPath = (Join-Path -Path (Split-Path -Parent \$sourceVideoPath) -ChildPath ('processed_' + '${escapedVideoName}'))`);
@@ -4058,12 +4057,17 @@
                                 }
                             } else if (part === 'edit_rotated:true' || part === 'has_cuts:true' || part.startsWith('edit_rot:') || part.startsWith('cuts:') || part.startsWith('markers:')) {
                                 // Track existence for UI but do not populate details
+                                // We simplify the flag to prevent complex strings from leaking into logic
+                                let simplifiedFlag = 'edit_rotated:true';
+                                if (part === 'has_cuts:true' || part.startsWith('cuts:')) simplifiedFlag = 'has_cuts:true';
+
                                 if (!editModeRotatedVideos.has(key)) {
-                                    editModeRotatedVideos.set(key, part);
+                                    editModeRotatedVideos.set(key, simplifiedFlag);
                                 } else {
-                                    // Combine flags if multiple exist
                                     const existing = editModeRotatedVideos.get(key);
-                                    editModeRotatedVideos.set(key, existing + '|' + part);
+                                    if (!existing.includes(simplifiedFlag)) {
+                                        editModeRotatedVideos.set(key, existing + '|' + simplifiedFlag);
+                                    }
                                 }
 
                                 if (!shortcutSelections.has(key)) {
@@ -4639,16 +4643,8 @@
                             selectionData.subfolder = videoFile.subfolder;
                             selectionData.projectName = project.name;
                             if (loadedEditState) {
-                                selectionData.editModeRotated = true;
-                                if (typeof loadedEditState === 'string' && loadedEditState.startsWith('edit_rot:')) {
-                                    const val = loadedEditState.substring(9);
-                                    const bits = val.split('|');
-                                    if (bits.length >= 2) {
-                                        selectionData.editRotationType = bits[0];
-                                        selectionData.editRotation = bits[1];
-                                        selectionData.isFullLength = bits[2] === '1';
-                                    }
-                                }
+                                // Use loaded flags for UI display only
+                                selectionData.editModeRotated = false;
                             }
                             if (!initialShortcutSelections.has(key)) {
                                 initialShortcutSelections.set(key, {
