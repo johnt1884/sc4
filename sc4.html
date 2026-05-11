@@ -2437,6 +2437,16 @@
 
             const flipped = selection ? !!selection.flipped : false;
 
+            // Flags for UI state
+            const hasUiRotation = selection && selection.rotation !== "0";
+            const hasSessionEditRot = selection && selection.editRotationType && selection.editRotationType !== 'none';
+            const hasSessionEditCuts = selection && selection.cuts && selection.cuts.length > 0;
+
+            const hasEditRotation = hasSessionEditRot || (selection && selection.loadedEditRotated);
+            const hasAnyCuts = hasSessionEditCuts || (selection && selection.loadedHasCuts);
+
+            const editChanged = (selection && selection.editModeRotated) || (selection && (selection.loadedEditRotated || selection.loadedHasCuts));
+
             const actionBar = rowDiv.querySelector('.row-action-bar');
             if (actionBar) {
                 actionBar.classList.toggle('selected-for-categories', key === selectedVideoKey);
@@ -2444,15 +2454,6 @@
                 const nameSpan = actionBar.querySelector('.row-video-name');
                 if (nameSpan) {
                     nameSpan.innerHTML = '';
-
-                    const hasUiRotation = selection && selection.rotation !== "0";
-                    const hasSessionEditRot = selection && selection.editRotationType && selection.editRotationType !== 'none';
-                    const hasSessionEditCuts = selection && selection.cuts && selection.cuts.length > 0;
-
-                    const hasEditRotation = hasSessionEditRot || (selection && selection.loadedEditRotated);
-                    const hasAnyCuts = hasSessionEditCuts || (selection && selection.loadedHasCuts);
-
-                    const editChanged = (selection && selection.editModeRotated) || (selection && (selection.loadedEditRotated || selection.loadedHasCuts));
 
                     if (hasUiRotation || editChanged) {
                         const icon = document.createElement('span');
