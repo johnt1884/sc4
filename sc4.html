@@ -1281,8 +1281,9 @@
         function editorGetRotationAt(time) {
             if (!editorMarkers || !editorMarkers.length) return 0;
             let rot = 0;
+            const eps = 0.02; // Roughly half a frame at 30fps
             for (const m of editorMarkers) {
-                if (time >= m.time) {
+                if (time >= (m.time - eps)) {
                     rot = m.rotation;
                 } else {
                     break;
@@ -3111,15 +3112,24 @@
                 '    \$tempDir = (Join-Path -Path \$env:TEMP -ChildPath ([System.Guid]::NewGuid().ToString()))',
                 '    [System.IO.Directory]::CreateDirectory(\$tempDir) | Out-Null',
                 '    ',
-                '    # Use -noautorotate to get raw dimensions',
+                '    # Get video info',
                 '    \$duration = (ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 -i "\$sourcePath") -as [double]',
-                '    Write-Host "Duration: \$duration seconds"',
+                '    \$fps_raw = (ffprobe -v error -select_streams v:0 -show_entries stream=r_frame_rate -of default=noprint_wrappers=1:nokey=1 -i "\$sourcePath")',
+                '    \$fps = if (\$fps_raw.Contains("/")) { ',
+                '        \$parts = \$fps_raw -split "/"; [double]\$parts[0] / [double]\$parts[1]',
+                '    } else { [double]\$fps_raw }',
+                '    Write-Host "Duration: \$duration seconds, FPS: \$fps"',
+                '    ',
+                '    function Snap-To-Frame {',
+                '        param([double]\$t, [double]\$fps)',
+                '        return [Math]::Floor(\$t * \$fps + 0.5) / \$fps',
+                '    }',
                 '    ',
                 '    \$points = New-Object System.Collections.Generic.List[double]',
                 '    \$points.Add(0)',
                 '    \$points.Add(\$duration)',
-                '    if (\$markers) { foreach (\$m in \$markers) { \$points.Add(\$m.time) } }',
-                '    if (\$cuts) { foreach (\$c in \$cuts) { \$points.Add(\$c.start); \$points.Add(\$c.end) } }',
+                '    if (\$markers) { foreach (\$m in \$markers) { \$points.Add((Snap-To-Frame \$m.time \$fps)) } }',
+                '    if (\$cuts) { foreach (\$c in \$cuts) { \$points.Add((Snap-To-Frame \$c.start \$fps)); \$points.Add((Snap-To-Frame \$c.end \$fps)) } }',
                 '    ',
                 '    \$sortedPoints = \$points | Sort-Object | Select-Object -Unique',
                 '    ',
@@ -3142,7 +3152,11 @@
                 '        if (\$isCut) { continue }',
                 '        ',
                 '        \$rotation = 0',
-                '        if (\$markers) { foreach (\$m in \$markers) { if (\$start -ge \$m.time) { \$rotation = \$m.rotation } } }',
+                '        if (\$markers) { ',
+                '            foreach (\$m in \$markers) { ',
+                '                if (\$start -ge (Snap-To-Frame \$m.time \$fps) - (0.5/\$fps)) { \$rotation = \$m.rotation } ',
+                '            } ',
+                '        }',
                 '        ',
                 '        \$segments += @{ start = \$start; end = \$end; rotation = \$rotation }',
                 '    }',
@@ -3462,13 +3476,13 @@
                     scriptLines.push(`    \$cuts = @()`);
                     if (sel.cuts) {
                         sel.cuts.forEach(c => {
-                            scriptLines.push(`    \$cuts += @{ start = ${c.start}; end = ${c.end} }`);
+                            scriptLines.push(`    \$cuts += @{ start = ${c.start.toFixed(6)}; end = ${c.end.toFixed(6)} }`);
                         });
                     }
                     scriptLines.push(`    \$markers = @()`);
                     if (sel.markers) {
                         sel.markers.forEach(m => {
-                            scriptLines.push(`    \$markers += @{ time = ${m.time}; rotation = ${m.rotation} }`);
+                            scriptLines.push(`    \$markers += @{ time = ${m.time.toFixed(6)}; rotation = ${m.rotation} }`);
                         });
                     }
                     if ((!sel.markers || sel.markers.length === 0) && sel.editRotation && sel.editRotation !== "0") {
