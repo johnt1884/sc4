@@ -1398,7 +1398,8 @@
                 editorProgress.style.width = p + '%';
                 editorScrubber.style.left = p + '%';
             }
-            editorTimeDisplay.textContent = `${editorFmtTime(currentTime)} / ${editorFmtTime(editorMainVideo.duration)}`;
+            const frameNum = Math.floor(currentTime * editorEstimatedFPS + 0.001);
+            editorTimeDisplay.textContent = `Frame: ${frameNum} | ${editorFmtTime(currentTime)} / ${editorFmtTime(editorMainVideo.duration)}`;
             const rot = editorGetRotationAt(currentTime);
             editorApplyRotationToViewer(rot);
             updateFrameTimeline();
@@ -1620,6 +1621,14 @@
             editorPendingCutEnd = null;
             editorEstimatedFPS = 30;
             editorFrameOffset = 1 / 30;
+
+            // Try to get FPS from selection if already edited
+            const existingSel = shortcutSelections.get(projectPath + '|' + videoName);
+            if (existingSel && existingSel.fps) {
+                editorEstimatedFPS = existingSel.fps;
+                editorFrameOffset = 1 / editorEstimatedFPS;
+            }
+
             editorMediaStartTime = null;
             editorMediaFrameCount = 0;
 
@@ -1674,22 +1683,25 @@
 
             if (editorDeleteFrameBtn) {
                 editorDeleteFrameBtn.onclick = () => {
-                    const start = editorMainVideo.currentTime;
-                    const end = start + editorFrameOffset;
+                    const frame = Math.floor(editorMainVideo.currentTime * editorEstimatedFPS + 0.001);
+                    const start = frame / editorEstimatedFPS;
+                    const end = (frame + 1) / editorEstimatedFPS;
                     editorCurrentCuts.push({ start: start, end: end });
                     editorUpdateUI();
                 };
             }
 
             editorMarkStartBtn.onclick = () => {
-                editorPendingCutStart = editorMainVideo.currentTime;
+                const frame = Math.floor(editorMainVideo.currentTime * editorEstimatedFPS + 0.001);
+                editorPendingCutStart = frame / editorEstimatedFPS;
                 if (editorPendingCutEnd !== null && editorPendingCutEnd < editorPendingCutStart) {
                     [editorPendingCutStart, editorPendingCutEnd] = [editorPendingCutEnd, editorPendingCutStart];
                 }
                 editorUpdateUI();
             };
             editorMarkEndBtn.onclick = () => {
-                editorPendingCutEnd = editorMainVideo.currentTime;
+                const frame = Math.floor(editorMainVideo.currentTime * editorEstimatedFPS + 0.001);
+                editorPendingCutEnd = (frame + 1) / editorEstimatedFPS;
                 if (editorPendingCutStart !== null && editorPendingCutEnd < editorPendingCutStart) {
                     [editorPendingCutStart, editorPendingCutEnd] = [editorPendingCutEnd, editorPendingCutStart];
                 }
@@ -1721,13 +1733,14 @@
             [editorRotLeftBtn, editorRot180Btn, editorRotRightBtn].forEach(b => {
                 b.onclick = () => {
                     const d = b.id === 'editor-rotLeft' ? 270 : b.id === 'editor-rot180' ? 180 : 90;
-                    const currentTime = editorMainVideo.currentTime;
-                    const currentRot = editorGetRotationAt(currentTime);
+                    const frame = Math.floor(editorMainVideo.currentTime * editorEstimatedFPS + 0.001);
+                    const snapTime = frame / editorEstimatedFPS;
+                    const currentRot = editorGetRotationAt(snapTime);
                     const nr = (currentRot + d) % 360;
 
                     // Deduplicate markers at same time (small threshold)
-                    editorMarkers = editorMarkers.filter(m => Math.abs(m.time - currentTime) > 0.001);
-                    editorMarkers.push({ time: currentTime, rotation: nr });
+                    editorMarkers = editorMarkers.filter(m => Math.abs(m.time - snapTime) > 0.001);
+                    editorMarkers.push({ time: snapTime, rotation: nr });
                     editorMarkers.sort((a, b) => a.time - b.time);
 
                     editorRenderMarkers();
