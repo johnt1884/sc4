@@ -3513,6 +3513,7 @@
                     const isFlipped = sel.editFlipped ? '\$true' : '\$false';
                     scriptLines.push(`    Process-Video -sourcePath \$sourceVideoPath -targetPath \$processedVideoPath -cuts \$cuts -markers \$markers -flipped ${isFlipped}`);
                     scriptLines.push(`    if (Test-Path -LiteralPath \"$processedVideoPath\") {`);
+                    scriptLines.push(`        if (Test-Path -LiteralPath \"$sourceVideoPath\") { Remove-Item -LiteralPath \"$sourceVideoPath\" -Force }`);
                     scriptLines.push(`        Move-Item -LiteralPath \"$processedVideoPath\" -Destination \"$sourceVideoPath\" -Force`);
                     scriptLines.push(`        Write-Host "Applied edits to: ${escapedVideoName}"`);
                     scriptLines.push(`    }`);
