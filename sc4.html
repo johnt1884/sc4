@@ -1426,7 +1426,7 @@
         }
         function editorUpdateUI() {
             editorRenderCutsList();
-            editorCutSegmentBtn.disabled = !(editorPendingCutStart !== null && editorPendingCutEnd !== null);
+            editorCutSegmentBtn.disabled = (editorPendingCutStart == null || editorPendingCutEnd == null);
             editorRenderMarkers();
         }
         function editorScrubToPosition(clientX) {
@@ -1702,7 +1702,7 @@
             editorMarkStartBtn.onclick = () => {
                 const frame = Math.floor(editorMainVideo.currentTime * editorEstimatedFPS + 0.001);
                 editorPendingCutStart = frame / editorEstimatedFPS;
-                if (editorPendingCutEnd !== null && editorPendingCutEnd < editorPendingCutStart) {
+                if (editorPendingCutEnd != null && editorPendingCutEnd < editorPendingCutStart) {
                     [editorPendingCutStart, editorPendingCutEnd] = [editorPendingCutEnd, editorPendingCutStart];
                 }
                 editorUpdateUI();
@@ -1710,7 +1710,7 @@
             editorMarkEndBtn.onclick = () => {
                 const frame = Math.floor(editorMainVideo.currentTime * editorEstimatedFPS + 0.001);
                 editorPendingCutEnd = (frame + 1) / editorEstimatedFPS;
-                if (editorPendingCutStart !== null && editorPendingCutEnd < editorPendingCutStart) {
+                if (editorPendingCutStart != null && editorPendingCutEnd < editorPendingCutStart) {
                     [editorPendingCutStart, editorPendingCutEnd] = [editorPendingCutEnd, editorPendingCutStart];
                 }
                 editorUpdateUI();
@@ -2369,7 +2369,7 @@
         function saveCurrentSizeForProject() {
             if (!canvases.has(activeCanvasId)) return;
             const canvas = canvases.get(activeCanvasId);
-            if (canvas.path !== undefined) {
+            if (canvas.path != null) {
                 const config = {
                     hSize: hSizeSelector.value,
                     vSize: vSizeSelector.value,
@@ -2399,7 +2399,7 @@
             }
 
             // Load saved size for this project
-            if (canvas.path !== undefined) {
+            if (canvas.path != null) {
                 const saved = localStorage.getItem(`proj-size-${canvas.path}`);
                 if (saved) {
                     const config = JSON.parse(saved);
@@ -5345,48 +5345,7 @@
             scriptLines.push('\$script:playlistContent | Out-File -LiteralPath \"$playlistPath\" -Encoding utf8');
             scriptLines.push('Write-Host "Playlist created at: \$playlistPath"');
 
-            scriptLines.push("\$luaPath = 'C:\\Bridge\\misc\\tools\\mpv-x86_64-v3-20260418-git-4377cce\\portable_config\\scripts\\autorotate.lua'");
-            scriptLines.push('\$allRotations = @{}');
-            scriptLines.push('if (Test-Path -LiteralPath \"$luaPath\") {');
-            scriptLines.push('    \$existingContent = Get-Content -LiteralPath \"$luaPath\" -Raw');
-            scriptLines.push('    if (\$existingContent -match \'(?s)local rotations = \\{(.*?)\\}\') {');
-            scriptLines.push('        \$inner = \$matches[1]');
-            scriptLines.push('        \$entries = \$inner -split \',\'');
-            scriptLines.push('        foreach (\$entry in \$entries) {');
-            scriptLines.push('            if (\$entry -match "\\[[\'\\"\" ]*(.*?)[\'\\"\" ]*\\]\\s*=\\s*[\'\\"\" ]?(\\d+)[\'\\"\" ]?") {');
-            scriptLines.push('                \$allRotations[\$matches[1]] = \$matches[2]');
-            scriptLines.push('            }');
-            scriptLines.push('        }');
-            scriptLines.push('    }');
-            scriptLines.push('}');
-            scriptLines.push('foreach (\$file in \$script:rotatedFiles.Keys) { \$allRotations[\$file] = \$script:rotatedFiles[\$file] }');
-            scriptLines.push('if (\$allRotations.Count -gt 0) {');
-            scriptLines.push('    \$luaDir = Split-Path -Parent \$luaPath');
-            scriptLines.push('    if (-not (Test-Path -LiteralPath \$luaDir)) { [System.IO.Directory]::CreateDirectory(\$luaDir) | Out-Null }');
-            scriptLines.push('    \$luaContent = @()');
-            scriptLines.push("    \$luaContent += 'local rotations = {'");
-            scriptLines.push('    foreach (\$file in \$allRotations.Keys) {');
-            scriptLines.push('        \$rot = \$allRotations[\$file]');
-            scriptLines.push("        \$escapedFile = \$file.Replace(\"'\", \"\\\\'\")");
-            scriptLines.push("        \$luaContent += \"    ['\$escapedFile'] = \$rot,\"");
-            scriptLines.push("    }");
-            scriptLines.push("    \$luaContent += '}'");
-            scriptLines.push("    \$luaContent += ''");
-            scriptLines.push("    \$luaContent += 'mp.register_event(\"file-loaded\", function()'");
-            scriptLines.push("    \$luaContent += '    local path = mp.get_property(\"path\")'");
-            scriptLines.push("    \$luaContent += '    if not path then return end'");
-            scriptLines.push("    \$luaContent += ''");
-            scriptLines.push("    \$luaContent += '    mp.set_property(\"video-rotate\", 0)'");
-            scriptLines.push("    \$luaContent += ''");
-            scriptLines.push("    \$luaContent += '    local filename = path:match(\"([^/\\\\\\\\]+)\$\") or path'");
-            scriptLines.push("    \$luaContent += ''");
-            scriptLines.push("    \$luaContent += '    if rotations[filename] then'");
-            scriptLines.push("    \$luaContent += '        mp.set_property(\"video-rotate\", rotations[filename])'");
-            scriptLines.push("    \$luaContent += '    end'");
-            scriptLines.push("    \$luaContent += 'end)'");
-            scriptLines.push('    \$luaContent | Out-File -LiteralPath \"$luaPath\" -Encoding utf8');
-            scriptLines.push('    Write-Host "Updated MPV autorotate script at: \$luaPath"');
-            scriptLines.push('}');
+            scriptLines.push('# --- Note: Rotation/Flip data now handled via physical video processing ---');
 
             
             scriptLines.push('Write-Host "Total items in playlist: \$(\$script:playlistContent.Count - 1)"');
