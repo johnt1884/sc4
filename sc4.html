@@ -18,6 +18,7 @@
             --date-text-color: #01ffff;
             --playlist-sc-color: #ff00ff;
             --selected-cat-color: #ff0000;
+            --edit-cuts-color: #ff8c00;
         }
         html, body {
             height: 100%;
@@ -603,10 +604,13 @@
         #editor-modal .modal-content {
             background-color: #121212;
             color: #eee;
-            width: 95%;
-            max-width: 1200px;
+            width: 100%;
+            height: 100%;
+            max-width: none;
+            max-height: none;
             padding: 18px;
-            border-radius: 8px;
+            border-radius: 0;
+            margin: 0;
         }
         .editor-app { display: flex; flex-direction: column; align-items: center; gap: 12px; }
         #editor-fileInfo { font-size: 14px; color: #ddd; }
@@ -615,9 +619,32 @@
         #editor-playerWrap { display: flex; flex-direction: column; align-items: center; width: 100%; }
         #editor-videoContainer { width: 100%; display: flex; align-items: center; justify-content: center; min-height: 260px; position: relative; }
         #editor-videoOverlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); pointer-events: none; display: none; z-index: 10; }
-        #editor-mainVideo { max-width: 90%; max-height: 60vh; background: black; border-radius: 6px; object-fit: contain; }
+        #editor-mainVideo { max-width: 95%; max-height: 75vh; background: black; border-radius: 6px; object-fit: contain; }
         #editor-timelineWrap { width: 98%; position: relative; user-select: none; margin-top: 10px; }
-        #editor-timeline { height: 18px; background: #333; border-radius: 9px; position: relative; cursor: pointer; margin-bottom: 36px; }
+        #editor-timeline { height: 18px; background: #333; border-radius: 9px; position: relative; cursor: pointer; margin-bottom: 20px; }
+        #editor-frameTimeline {
+            width: 98%;
+            height: 40px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            background: #222;
+            border-radius: 4px;
+            padding: 0 10px;
+            box-sizing: border-box;
+        }
+        .frame-marker {
+            cursor: pointer;
+            text-align: center;
+            flex: 1;
+            font-size: 11px;
+            color: #888;
+            padding: 5px 0;
+            border-radius: 3px;
+        }
+        .frame-marker:hover { background: #333; color: #fff; }
+        .frame-marker.active { color: #00acc1; font-weight: bold; background: #2a2a2a; border: 1px solid #00acc1; }
         #editor-scrubber { position: absolute; top: 50%; left: 0; width: 22px; height: 22px; background: #fff; border-radius: 50%; transform: translate(-50%, -50%); cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,.5); }
         #editor-progress { position: absolute; left: 0; top: 0; height: 100%; background: #00acc1; border-radius: 9px; width: 0%; }
         .editor-marker { position: absolute; top: 0; width: 6px; height: 18px; transform: translateX(-50%); border-radius: 3px; box-shadow: 0 0 4px rgba(0,0,0,.6); }
@@ -722,27 +749,43 @@
                                 <input type="color" id="selected-cat-color-picker" value="#ff0000">
                             </div>
                             <div class="options-row">
-                                <label for="enable-categories-panel-checkbox">Enable Categories Panel</label>
-                                <input type="checkbox" id="enable-categories-panel-checkbox">
+                                <label for="edit-cuts-color-picker">Edit Button (with cuts)</label>
+                                <input type="color" id="edit-cuts-color-picker" value="#ff8c00">
                             </div>
                             <button id="revert-defaults-btn" style="width: 100%; text-align: center; border-top: 1px solid #ccc; font-weight: bold;">Revert to Default Colors</button>
                         </div>
                     </div>
-                    <select id="size-selector">
-                        <option value="auto">Auto Fit</option>
-                        <option value="0.1">10%</option>
-                        <option value="0.2">20%</option>
-                        <option value="0.3">30%</option>
-                        <option value="0.4">40%</option>
-                        <option value="0.5">50%</option>
-                        <option value="0.6">60%</option>
-                        <option value="0.7">70%</option>
-                        <option value="0.8">80%</option>
-                        <option value="0.9">90%</option>
-                        <option value="1" selected>100%</option>
-                        <option value="custom">Custom</option>
+                    <select id="h-size-selector" title="Horizontal Thumbnail Size">
+                        <option value="auto">H Auto</option>
+                        <option value="0.1">H 10%</option>
+                        <option value="0.2">H 20%</option>
+                        <option value="0.3">H 30%</option>
+                        <option value="0.4">H 40%</option>
+                        <option value="0.5">H 50%</option>
+                        <option value="0.6">H 60%</option>
+                        <option value="0.7">H 70%</option>
+                        <option value="0.8">H 80%</option>
+                        <option value="0.85">H 85%</option>
+                        <option value="0.9">H 90%</option>
+                        <option value="1">H 100%</option>
+                        <option value="custom" selected>H Custom</option>
                     </select>
-                    <input type="number" id="custom-size-input" style="display:none; width: 60px; height: 28px; background-color: var(--top-bar-color); color: white; border: 1px solid #444444; margin-left: 5px; text-align: center;" placeholder="%" min="1" max="500">
+                    <select id="v-size-selector" title="Vertical Thumbnail Size">
+                        <option value="auto">V Auto</option>
+                        <option value="0.1">V 10%</option>
+                        <option value="0.2">V 20%</option>
+                        <option value="0.3">V 30%</option>
+                        <option value="0.4">V 40%</option>
+                        <option value="0.5">V 50%</option>
+                        <option value="0.6">V 60%</option>
+                        <option value="0.7">V 70%</option>
+                        <option value="0.8">V 80%</option>
+                        <option value="0.85" selected>V 85%</option>
+                        <option value="0.9">V 90%</option>
+                        <option value="1">V 100%</option>
+                        <option value="custom">V Custom</option>
+                    </select>
+                    <input type="number" id="custom-size-input" style="display:inline-block; width: 60px; height: 28px; background-color: var(--top-bar-color); color: white; border: 1px solid #444444; margin-left: 5px; text-align: center;" placeholder="%" min="1" max="500" value="150">
                     <select id="sort-selector">
                         <option value="" disabled selected hidden>Sort</option>
                         <option value="name-asc">Name (A-Z)</option>
@@ -761,6 +804,10 @@
                     <div class="checkbox-container">
                         <input type="checkbox" id="show-numbers-checkbox">
                         <label for="show-numbers-checkbox">Show Numbers</label>
+                    </div>
+                    <div class="checkbox-container">
+                        <input type="checkbox" id="enable-categories-panel-checkbox">
+                        <label for="enable-categories-panel-checkbox">Categories</label>
                     </div>
                 </div>
                 <div class="top-bar-right">
@@ -804,6 +851,7 @@
                             <div id="editor-scrubber"></div>
                         </div>
                     </div>
+                    <div id="editor-frameTimeline"></div>
                     <div id="editor-frameControls" class="editor-control-group" style="margin-bottom: 8px;">
                         <button id="editor-frameBackBtn" class="editor-frame-btn">←</button>
                         <button id="editor-frameForwardBtn" class="editor-frame-btn">→</button>
@@ -811,6 +859,7 @@
                     <div id="editor-controls">
                         <div class="editor-control-group" style="justify-content:flex-start">
                             <button id="editor-playPause" class="bar-button">▶️ Play</button>
+                            <button id="editor-deleteFrameBtn" class="bar-button" style="border-color:#f44336">Delete Frame</button>
                         </div>
                         <div class="editor-control-group">
                             <button id="editor-markStartBtn" class="bar-button" style="border-color:#43a047">Mark Start</button>
@@ -818,15 +867,18 @@
                             <button id="editor-rot180" class="bar-button" style="border-color:#ffca28">180°</button>
                             <button id="editor-rotRight" class="bar-button" style="border-color:#ff4081">90° Right</button>
                             <button id="editor-markEndBtn" class="bar-button" style="border-color:#43a047">Mark End</button>
+                            <button id="editor-flipBtn" class="bar-button">Flip H</button>
                             <button id="editor-cutSegmentBtn" class="bar-button" style="background:#d32f2f;color:white" disabled>Cut Segment</button>
+                            <button id="editor-deleteEditThumbsBtn" class="bar-button" style="border-color:#f44336">Delete Edit Thumbnails</button>
+                            <button id="editor-commitBtn" class="editor-greenBtn">Commit</button>
                         </div>
                         <div class="editor-control-group" style="justify-content:flex-end">
                             <span id="editor-timeDisplay" style="font-size: 12px; color: #888;">00:00.000 / 00:00.000</span>
                         </div>
                     </div>
                     <div id="editor-cutsListContainer"></div>
-                    <div style="width:98%; display:flex; justify-content: flex-end; margin-top: 10px;">
-                        <button id="editor-commitBtn" class="editor-greenBtn">Commit</button>
+                    <div style="width:98%; display:flex; justify-content: flex-end; margin-top: 10px; gap: 10px;">
+                        <button id="editor-resetBtn" class="bar-button" style="border-color:#f44336">Reset</button>
                     </div>
                 </div>
             </div>
@@ -859,7 +911,8 @@
         const batchScriptTextArea = document.getElementById('batch-script');
         const copyScriptBtn = document.getElementById('copy-script-btn');
         const downloadScriptLink = document.getElementById('download-script-link');
-        const sizeSelector = document.getElementById('size-selector');
+        const hSizeSelector = document.getElementById('h-size-selector');
+        const vSizeSelector = document.getElementById('v-size-selector');
         const customSizeInput = document.getElementById('custom-size-input');
         const sortSelector = document.getElementById('sort-selector');
         const loadButton = document.getElementById('load-directory-btn');
@@ -894,6 +947,7 @@
         const editorScrubber = document.getElementById('editor-scrubber');
         const editorPlayPauseBtn = document.getElementById('editor-playPause');
         const editorTimeDisplay = document.getElementById('editor-timeDisplay');
+        const editorFrameTimeline = document.getElementById('editor-frameTimeline');
         const editorMarkStartBtn = document.getElementById('editor-markStartBtn');
         const editorMarkEndBtn = document.getElementById('editor-markEndBtn');
         const editorCutSegmentBtn = document.getElementById('editor-cutSegmentBtn');
@@ -906,6 +960,10 @@
         const editorRotRightBtn = document.getElementById('editor-rotRight');
         const editorVideoOverlay = document.getElementById('editor-videoOverlay');
         const editorFileInfo = document.getElementById('editor-fileInfo');
+        const editorFlipBtn = document.getElementById('editor-flipBtn');
+        const editorDeleteEditThumbsBtn = document.getElementById('editor-deleteEditThumbsBtn');
+        const editorResetBtn = document.getElementById('editor-resetBtn');
+        const editorDeleteFrameBtn = document.getElementById('editor-deleteFrameBtn');
         let selectedVideoKey = null;
 
         const prevCanvasBtn = document.getElementById('prev-canvas-btn');
@@ -949,6 +1007,7 @@
         let editorScrubbingMouseDown = false;
         let editorCurrentAppliedRotation = 0;
         let editorCurrentAppliedFlip = false;
+        let editorDeleteEditThumbsFlag = false;
 
         let videoCategories = new Map(); // Key: projectPath + '|' + videoName, Value: Set of category names
         let editModeRotatedVideos = new Map(); // Key: projectPath + '|' + videoName, Value: true
@@ -1201,13 +1260,30 @@
                 transform += ' scaleX(-1)';
             }
             editorMainVideo.style.transform = transform;
+
+            // Handle container resizing for vertical rotation (90/270)
+            const isVertical = (editorCurrentAppliedRotation === 90 || editorCurrentAppliedRotation === 270);
+            const container = document.getElementById('editor-videoContainer');
+            if (isVertical) {
+                // Determine height needed for rotated video
+                const videoW = editorMainVideo.videoWidth || 640;
+                const videoH = editorMainVideo.videoHeight || 360;
+                const aspect = videoW / videoH;
+                const availableH = window.innerHeight * 0.6;
+                const neededH = Math.min(availableH, window.innerWidth * 0.9 * aspect);
+                container.style.minHeight = neededH + 'px';
+                editorMainVideo.style.maxWidth = (neededH / aspect) + 'px';
+            } else {
+                container.style.minHeight = '260px';
+                editorMainVideo.style.maxWidth = '90%';
+            }
         }
         function editorGetRotationAt(time) {
             if (!editorMarkers || !editorMarkers.length) return 0;
-            const currentFrame = editorTimeToFrame(time);
             let rot = 0;
+            const eps = 0.02; // Roughly half a frame at 30fps
             for (const m of editorMarkers) {
-                if (currentFrame >= m.frame) {
+                if (time >= (m.time - eps)) {
                     rot = m.rotation;
                 } else {
                     break;
@@ -1246,8 +1322,7 @@
             }
 
             (editorMarkers || []).forEach((m, idx) => {
-                const t = editorFrameToTime(m.frame);
-                const x = (t / editorMainVideo.duration) * w;
+                const x = (m.time / editorMainVideo.duration) * w;
                 const mark = document.createElement('div');
                 mark.className = 'editor-marker';
                 mark.dataset.rot = m.rotation;
@@ -1255,7 +1330,6 @@
                 mark.onclick = (e) => {
                     e.stopPropagation();
                     editorMainVideo.currentTime = t;
-                    editorApplyRotationToViewer(m.rotation);
                 };
                 editorTimeline.appendChild(mark);
 
@@ -1271,6 +1345,39 @@
                 editorTimeline.appendChild(del);
             });
         }
+        function updateFrameTimeline() {
+            if (!editorFrameTimeline || !editorMainVideo.duration) return;
+            const currentTime = editorMainVideo.currentTime;
+            const currentFrame = editorTimeToFrame(currentTime);
+            const totalFrames = editorTimeToFrame(editorMainVideo.duration);
+
+            let startFrame = currentFrame - 5;
+            let endFrame = currentFrame + 5;
+
+            if (startFrame < 0) {
+                endFrame -= startFrame; // add the deficit to end
+                startFrame = 0;
+            }
+            if (endFrame > totalFrames) {
+                startFrame -= (endFrame - totalFrames); // add surplus to start
+                endFrame = totalFrames;
+            }
+            if (startFrame < 0) startFrame = 0; // double check
+
+            editorFrameTimeline.innerHTML = '';
+            for (let f = startFrame; f <= endFrame; f++) {
+                const marker = document.createElement('div');
+                marker.className = 'frame-marker';
+                if (f === currentFrame) marker.classList.add('active');
+                marker.textContent = f;
+                marker.onclick = () => {
+                    editorMainVideo.currentTime = editorFrameToTime(f);
+                    updateFrameTimeline();
+                };
+                editorFrameTimeline.appendChild(marker);
+            }
+        }
+
         function editorRenderLoop(now, metadata) {
             if (!editorMainVideo.duration) return;
             const currentTime = metadata.mediaTime;
@@ -1291,9 +1398,11 @@
                 editorProgress.style.width = p + '%';
                 editorScrubber.style.left = p + '%';
             }
-            editorTimeDisplay.textContent = `${editorFmtTime(currentTime)} / ${editorFmtTime(editorMainVideo.duration)}`;
+            const frameNum = Math.floor(currentTime * editorEstimatedFPS + 0.001);
+            editorTimeDisplay.textContent = `Frame: ${frameNum} | ${editorFmtTime(currentTime)} / ${editorFmtTime(editorMainVideo.duration)}`;
             const rot = editorGetRotationAt(currentTime);
             editorApplyRotationToViewer(rot);
+            updateFrameTimeline();
             const isCut = editorCurrentCuts.some(cut => currentTime >= cut.start && currentTime < cut.end);
             editorVideoOverlay.style.display = isCut ? 'block' : 'none';
             editorMainVideo.requestVideoFrameCallback(editorRenderLoop);
@@ -1317,7 +1426,7 @@
         }
         function editorUpdateUI() {
             editorRenderCutsList();
-            editorCutSegmentBtn.disabled = !(editorPendingCutStart !== null && editorPendingCutEnd !== null);
+            editorCutSegmentBtn.disabled = (editorPendingCutStart == null || editorPendingCutEnd == null);
             editorRenderMarkers();
         }
         function editorScrubToPosition(clientX) {
@@ -1490,15 +1599,44 @@
             editorCurrentVideo = { videoName, projectPath, subfolder, projectName };
             editorFileInfo.textContent = `${videoName} (${projectPath})`;
 
-            // Blank slate for edit mode
-            editorCurrentCuts = [];
-            editorMarkers = [];
-            editorCurrentAppliedFlip = false;
-            editorCurrentAppliedRotation = 0;
+            const selection = shortcutSelections.get(key);
+
+            // Load existing state or start with blank slate
+            editorCurrentCuts = (selection && selection.cuts) ? JSON.parse(JSON.stringify(selection.cuts)) : [];
+            editorMarkers = (selection && selection.markers) ? JSON.parse(JSON.stringify(selection.markers)) : [];
+
+            // If after using the main page buttons (which clear markers), the slate should be cleared in the editor.
+            // Resuming is supported only if markers or cuts exist.
+            if (editorMarkers.length === 0 && editorCurrentCuts.length === 0) {
+                editorCurrentAppliedRotation = 0;
+                editorCurrentAppliedFlip = false;
+            } else {
+                editorCurrentAppliedRotation = (selection && selection.editRotation) ? parseInt(selection.editRotation) : 0;
+                editorCurrentAppliedFlip = selection ? !!selection.editFlipped : false;
+            }
+            editorDeleteEditThumbsFlag = selection ? !!selection.deleteEditThumbnails : false;
+
+            if (editorFlipBtn) {
+                editorFlipBtn.classList.toggle('active', editorCurrentAppliedFlip);
+                editorFlipBtn.style.backgroundColor = editorCurrentAppliedFlip ? 'rgba(255, 255, 255, 0.2)' : '';
+            }
+
+            if (editorDeleteEditThumbsBtn) {
+                editorDeleteEditThumbsBtn.classList.toggle('active', editorDeleteEditThumbsFlag);
+                editorDeleteEditThumbsBtn.style.backgroundColor = editorDeleteEditThumbsFlag ? 'rgba(244, 67, 54, 0.3)' : '';
+            }
             editorPendingCutStart = null;
             editorPendingCutEnd = null;
             editorEstimatedFPS = 30;
             editorFrameOffset = 1 / 30;
+
+            // Try to get FPS from selection if already edited
+            const existingSel = shortcutSelections.get(projectPath + '|' + videoName);
+            if (existingSel && existingSel.fps) {
+                editorEstimatedFPS = existingSel.fps;
+                editorFrameOffset = 1 / editorEstimatedFPS;
+            }
+
             editorMediaStartTime = null;
             editorMediaFrameCount = 0;
 
@@ -1529,6 +1667,9 @@
             currentVideoUrl = URL.createObjectURL(videoFile);
             editorMainVideo.src = currentVideoUrl;
             editorModal.style.display = 'flex';
+
+            // Ensure UI reflects loaded state
+            editorUpdateUI();
         }
 
         function init() {
@@ -1548,16 +1689,28 @@
                 }
             });
 
+            if (editorDeleteFrameBtn) {
+                editorDeleteFrameBtn.onclick = () => {
+                    const frame = Math.floor(editorMainVideo.currentTime * editorEstimatedFPS + 0.001);
+                    const start = frame / editorEstimatedFPS;
+                    const end = (frame + 1) / editorEstimatedFPS;
+                    editorCurrentCuts.push({ start: start, end: end });
+                    editorUpdateUI();
+                };
+            }
+
             editorMarkStartBtn.onclick = () => {
-                editorPendingCutStart = editorMainVideo.currentTime;
-                if (editorPendingCutEnd !== null && editorPendingCutEnd < editorPendingCutStart) {
+                const frame = Math.floor(editorMainVideo.currentTime * editorEstimatedFPS + 0.001);
+                editorPendingCutStart = frame / editorEstimatedFPS;
+                if (editorPendingCutEnd != null && editorPendingCutEnd < editorPendingCutStart) {
                     [editorPendingCutStart, editorPendingCutEnd] = [editorPendingCutEnd, editorPendingCutStart];
                 }
                 editorUpdateUI();
             };
             editorMarkEndBtn.onclick = () => {
-                editorPendingCutEnd = editorMainVideo.currentTime;
-                if (editorPendingCutStart !== null && editorPendingCutEnd < editorPendingCutStart) {
+                const frame = Math.floor(editorMainVideo.currentTime * editorEstimatedFPS + 0.001);
+                editorPendingCutEnd = (frame + 1) / editorEstimatedFPS;
+                if (editorPendingCutStart != null && editorPendingCutEnd < editorPendingCutStart) {
                     [editorPendingCutStart, editorPendingCutEnd] = [editorPendingCutEnd, editorPendingCutStart];
                 }
                 editorUpdateUI();
@@ -1574,17 +1727,81 @@
             editorFrameBackBtn.onclick = () => editorMainVideo.currentTime -= editorFrameOffset;
             editorFrameForwardBtn.onclick = () => editorMainVideo.currentTime += editorFrameOffset;
 
+            editorModal.addEventListener('wheel', (e) => {
+                if (editorModal.style.display === 'flex') {
+                    e.preventDefault();
+                    if (e.deltaY < 0) {
+                        editorMainVideo.currentTime -= editorFrameOffset;
+                    } else {
+                        editorMainVideo.currentTime += editorFrameOffset;
+                    }
+                }
+            }, { passive: false });
+
             [editorRotLeftBtn, editorRot180Btn, editorRotRightBtn].forEach(b => {
                 b.onclick = () => {
                     const d = b.id === 'editor-rotLeft' ? 270 : b.id === 'editor-rot180' ? 180 : 90;
-                    const nr = (editorCurrentAppliedRotation + d) % 360;
-                    editorApplyRotationToViewer(nr);
-                    const currentFrame = editorTimeToFrame(editorMainVideo.currentTime);
-                    editorMarkers.push({ frame: currentFrame, rotation: nr });
-                    editorMarkers.sort((a, b) => a.frame - b.frame);
+                    const frame = Math.floor(editorMainVideo.currentTime * editorEstimatedFPS + 0.001);
+                    const snapTime = frame / editorEstimatedFPS;
+                    const currentRot = editorGetRotationAt(snapTime);
+                    const nr = (currentRot + d) % 360;
+
+                    // Deduplicate markers at same time (small threshold)
+                    editorMarkers = editorMarkers.filter(m => Math.abs(m.time - snapTime) > 0.001);
+                    editorMarkers.push({ time: snapTime, rotation: nr });
+                    editorMarkers.sort((a, b) => a.time - b.time);
+
                     editorRenderMarkers();
+                    editorApplyRotationToViewer(nr);
                 };
             });
+
+            if (editorFlipBtn) {
+                editorFlipBtn.onclick = () => {
+                    editorCurrentAppliedFlip = !editorCurrentAppliedFlip;
+                    editorFlipBtn.classList.toggle('active', editorCurrentAppliedFlip);
+                    if (editorCurrentAppliedFlip) {
+                        editorFlipBtn.style.backgroundColor = 'rgba(255, 255, 255, 0.2)';
+                    } else {
+                        editorFlipBtn.style.backgroundColor = '';
+                    }
+                    // Update viewer immediately
+                    const rot = editorGetRotationAt(editorMainVideo.currentTime);
+                    editorApplyRotationToViewer(rot, editorCurrentAppliedFlip);
+                };
+            }
+
+            if (editorDeleteEditThumbsBtn) {
+                editorDeleteEditThumbsBtn.onclick = () => {
+                    editorDeleteEditThumbsFlag = !editorDeleteEditThumbsFlag;
+                    editorDeleteEditThumbsBtn.classList.toggle('active', editorDeleteEditThumbsFlag);
+                    if (editorDeleteEditThumbsFlag) {
+                        editorDeleteEditThumbsBtn.style.backgroundColor = 'rgba(244, 67, 54, 0.3)';
+                    } else {
+                        editorDeleteEditThumbsBtn.style.backgroundColor = '';
+                    }
+                };
+            }
+
+            if (editorResetBtn) {
+                editorResetBtn.onclick = () => {
+                    if (confirm('Clear all changes for this video?')) {
+                        editorCurrentCuts = [];
+                        editorMarkers = [];
+                        editorCurrentAppliedFlip = false;
+                        editorCurrentAppliedRotation = 0;
+                        editorDeleteEditThumbsFlag = false;
+                        if (editorDeleteEditThumbsBtn) {
+                            editorDeleteEditThumbsBtn.classList.remove('active');
+                            editorDeleteEditThumbsBtn.style.backgroundColor = '';
+                        }
+                        editorPendingCutStart = null;
+                        editorPendingCutEnd = null;
+                        editorApplyRotationToViewer(0, false);
+                        editorUpdateUI();
+                    }
+                };
+            }
 
             editorTimeline.onmousedown = e => {
                 editorScrubbingMouseDown = true;
@@ -1611,42 +1828,78 @@
                 let selection = shortcutSelections.get(key);
 
                 const hasCuts = editorCurrentCuts.length > 0;
-                let markersChanged = editorMarkers.length > 0;
-                let finalRotation = initialRot;
-                let finalFlipped = editorCurrentAppliedFlip;
+                const finalEditFlipped = editorCurrentAppliedFlip;
 
-                if (markersChanged) {
-                    const lastMarker = editorMarkers[editorMarkers.length - 1];
-                    finalRotation = lastMarker.rotation.toString();
-                    if (editorMarkers.length === 1 && editorMarkers[0].frame === 0) {
-                        if (finalRotation === initialRot) {
-                            markersChanged = false;
+                // Deduplicate markers at same time (keep last)
+                const uniqueMarkers = [];
+                if (editorMarkers.length > 0) {
+                    const sorted = [...editorMarkers].sort((a, b) => a.time - b.time);
+                    for (let i = 0; i < sorted.length; i++) {
+                        if (i === sorted.length - 1 || Math.abs(sorted[i].time - sorted[i+1].time) > 0.001) {
+                            uniqueMarkers.push(sorted[i]);
                         }
                     }
                 }
 
-                // Goal: New commit entirely disregards/replaces the previous one.
+                // Analyze rotation uniformity
+                let editRotationType = 'none';
+                let isFullLength = false;
+                let finalEditRotation = "0";
+
+                if (uniqueMarkers.length === 1 && uniqueMarkers[0].time < 0.01) {
+                    editRotationType = 'uniform';
+                    isFullLength = true;
+                    finalEditRotation = uniqueMarkers[0].rotation.toString();
+                    if (finalEditRotation === "0") {
+                        editRotationType = 'none';
+                        isFullLength = false;
+                    }
+                } else if (uniqueMarkers.length > 0) {
+                    editRotationType = 'complex';
+                    finalEditRotation = uniqueMarkers[uniqueMarkers.length - 1].rotation.toString();
+                }
+
+                const editChanged = hasCuts || (editRotationType !== 'none') || (finalEditFlipped !== false);
+
                 if (!selection) {
                     selection = {
                         videoName: editorCurrentVideo.videoName,
                         projectPath: editorCurrentVideo.projectPath,
                         subfolder: editorCurrentVideo.subfolder,
                         projectName: editorCurrentVideo.projectName,
-                        type: '', rotation: finalRotation, flipped: finalFlipped
+                        type: '',
+                        rotation: initialRot,
+                        flipped: initialFlipped
                     };
                     shortcutSelections.set(key, selection);
                 }
                 
                 selection.cuts = JSON.parse(JSON.stringify(editorCurrentCuts));
-                selection.markers = JSON.parse(JSON.stringify(editorMarkers));
-                selection.rotation = finalRotation;
-                selection.flipped = finalFlipped;
+                selection.markers = uniqueMarkers;
+                selection.editRotation = finalEditRotation;
+                selection.editRotationType = editRotationType;
+                selection.isFullLength = isFullLength;
+                selection.editFlipped = finalEditFlipped;
+                selection.deleteEditThumbnails = editorDeleteEditThumbsFlag;
                 selection.fps = editorEstimatedFPS;
-                // Edit mode hard-rotates, so we do not set buttonRotationTouched here
                 
-                // Track if it was rotated in edit mode in THIS session
-                // Red icon appears if it has markers or if rotation was changed from 0 in editor
-                selection.editModeRotated = (editorMarkers.length > 0);
+                // Track if it was edited in edit mode
+                selection.editModeRotated = editChanged || editorDeleteEditThumbsFlag;
+
+                // Update visual orientation for thumbnails if uniform and full-length (with no cuts)
+                if (isFullLength && !hasCuts) {
+                    selection.rotation = finalEditRotation;
+                    selection.flipped = finalEditFlipped;
+                }
+
+                // Clear loaded persistent flags as they are now superseded by session edits
+                selection.loadedEditRotated = false;
+                selection.loadedHasCuts = false;
+
+                // Override persistence map for current session
+                if (editModeRotatedVideos.has(key)) {
+                    editModeRotatedVideos.delete(key);
+                }
 
                 // Close editor
                 editorModal.style.display = 'none';
@@ -1711,7 +1964,8 @@
                 'row-number-color': document.getElementById('row-number-color-picker'),
                 'date-text-color': document.getElementById('date-text-color-picker'),
                 'playlist-sc-color': document.getElementById('playlist-sc-color-picker'),
-                'selected-cat-color': document.getElementById('selected-cat-color-picker')
+                'selected-cat-color': document.getElementById('selected-cat-color-picker'),
+                'edit-cuts-color': document.getElementById('edit-cuts-color-picker')
             };
 
             // Load saved colors
@@ -1753,7 +2007,8 @@
                         'row-number-color': '#fcfc01',
                         'date-text-color': '#01ffff',
                         'playlist-sc-color': '#ff00ff',
-                        'selected-cat-color': '#ff0000'
+                        'selected-cat-color': '#ff0000',
+                        'edit-cuts-color': '#ff8c00'
                     };
                     Object.keys(defaults).forEach(id => {
                         const color = defaults[id];
@@ -1876,8 +2131,18 @@
                 scriptModal.style.display = 'block';
             });
 
-            sizeSelector.addEventListener('change', () => {
-                if (sizeSelector.value === 'custom') {
+            hSizeSelector.addEventListener('change', () => {
+                if (hSizeSelector.value === 'custom' || vSizeSelector.value === 'custom') {
+                    customSizeInput.style.display = 'inline-block';
+                    if (!customSizeInput.value) customSizeInput.value = 100;
+                } else {
+                    customSizeInput.style.display = 'none';
+                }
+                saveCurrentSizeForProject();
+                layoutLandscapeThumbnails();
+            });
+            vSizeSelector.addEventListener('change', () => {
+                if (hSizeSelector.value === 'custom' || vSizeSelector.value === 'custom') {
                     customSizeInput.style.display = 'inline-block';
                     if (!customSizeInput.value) customSizeInput.value = 100;
                 } else {
@@ -2104,10 +2369,11 @@
         function saveCurrentSizeForProject() {
             if (!canvases.has(activeCanvasId)) return;
             const canvas = canvases.get(activeCanvasId);
-            if (canvas.path !== undefined) {
+            if (canvas.path != null) {
                 const config = {
-                    size: sizeSelector.value,
-                    custom: sizeSelector.value === 'custom' ? customSizeInput.value : null
+                    hSize: hSizeSelector.value,
+                    vSize: vSizeSelector.value,
+                    custom: (hSizeSelector.value === 'custom' || vSizeSelector.value === 'custom') ? customSizeInput.value : null
                 };
                 localStorage.setItem(`proj-size-${canvas.path}`, JSON.stringify(config));
             }
@@ -2133,12 +2399,13 @@
             }
 
             // Load saved size for this project
-            if (canvas.path !== undefined) {
+            if (canvas.path != null) {
                 const saved = localStorage.getItem(`proj-size-${canvas.path}`);
                 if (saved) {
                     const config = JSON.parse(saved);
-                    sizeSelector.value = config.size;
-                    if (config.size === 'custom') {
+                    hSizeSelector.value = config.hSize || config.size || "1";
+                    vSizeSelector.value = config.vSize || config.size || "1";
+                    if (config.hSize === 'custom' || config.vSize === 'custom' || config.size === 'custom') {
                         customSizeInput.style.display = 'inline-block';
                         customSizeInput.value = config.custom;
                     } else {
@@ -2146,8 +2413,10 @@
                     }
                 } else {
                     // Default for projects not yet customized
-                    sizeSelector.value = "1";
-                    customSizeInput.style.display = 'none';
+                    hSizeSelector.value = "custom";
+                    vSizeSelector.value = "0.85";
+                    customSizeInput.value = "150";
+                    customSizeInput.style.display = 'inline-block';
                 }
             }
 
@@ -2184,12 +2453,76 @@
             const key = projectPath + '|' + videoName;
             const selection = shortcutSelections.get(key);
             const type = selection ? selection.type : '';
-            const rotation = selection ? selection.rotation : "0";
+
+            // Logic for visual thumbnail rotation (Main view thumbnails only follow UI rotation)
+            let visualRotation = parseInt(selection ? selection.rotation : "0");
+            const visualRotationStr = visualRotation === 0 ? "0" : visualRotation.toString();
+
             const flipped = selection ? !!selection.flipped : false;
+
+            // Flags for UI state
+            const hasUiRotation = selection && selection.rotation !== "0";
+            const hasSessionEditRot = selection && selection.editRotationType && selection.editRotationType !== 'none';
+            const hasSessionEditCuts = selection && selection.cuts && selection.cuts.length > 0;
+
+            const hasEditRotation = hasSessionEditRot || (selection && selection.loadedEditRotated);
+            const hasAnyCuts = hasSessionEditCuts || (selection && selection.loadedHasCuts);
+
+            const editChanged = (selection && selection.editModeRotated) || (selection && (selection.loadedEditRotated || selection.loadedHasCuts));
 
             const actionBar = rowDiv.querySelector('.row-action-bar');
             if (actionBar) {
                 actionBar.classList.toggle('selected-for-categories', key === selectedVideoKey);
+
+                const nameSpan = actionBar.querySelector('.row-video-name');
+                if (nameSpan) {
+                    nameSpan.innerHTML = '';
+
+                    if (hasUiRotation || editChanged) {
+                        const icon = document.createElement('span');
+                        icon.className = 'red-rotation-icon';
+                        icon.innerHTML = '&#10227;';
+
+                        // Color coding per instructions: Green (UI), Yellow (Edit), Blue (Both)
+                        const isUiOnly = hasUiRotation && !editChanged;
+                        const isEditOnly = !hasUiRotation && editChanged;
+                        const isBoth = hasUiRotation && editChanged;
+
+                        if (isBoth) {
+                            icon.style.color = '#009dff'; // Blue
+                        } else if (isUiOnly) {
+                            icon.style.color = '#00ff1e'; // Green
+                        } else if (isEditOnly) {
+                            icon.style.color = '#ffe11f'; // Yellow
+                        }
+
+                        // Tooltip logic
+                        let tooltipParts = [];
+                        if (hasUiRotation) tooltipParts.push(`UI Rotation: ${selection.rotation}°`);
+
+                        if (selection && selection.editModeRotated) {
+                            // Current session details
+                            if (selection.editRotationType === 'uniform') {
+                                tooltipParts.push(`Edit Rotation: ${selection.editRotation}° (Uniform, Full-length)`);
+                            } else if (selection.editRotationType === 'complex') {
+                                tooltipParts.push(`Edit Rotation: Complex/Multi-marker`);
+                            }
+                            if (selection.editFlipped) tooltipParts.push(`Edit Flip: ON`);
+                            if (selection.cuts && selection.cuts.length > 0) tooltipParts.push(`Cuts: ${selection.cuts.length}`);
+                            if (selection.deleteEditThumbnails) tooltipParts.push(`Delete Edit Thumbs: YES`);
+                        } else if (selection && (selection.loadedEditRotated || selection.loadedHasCuts)) {
+                            // Persistent flags from previous session
+                            if (selection.loadedEditRotated) tooltipParts.push('Edit Mode: Rotated in previous session');
+                            if (selection.loadedHasCuts) tooltipParts.push('Edit Mode: Has segments cut');
+                        } else if (editModeRotatedVideos.get(key)) {
+                            tooltipParts.push(`Edit Mode: Edited in previous session`);
+                        }
+                        icon.title = tooltipParts.join(' | ');
+
+                        nameSpan.appendChild(icon);
+                    }
+                    nameSpan.appendChild(document.createTextNode(videoName));
+                }
             }
 
             rowDiv.querySelectorAll('.thumbnail').forEach(t => {
@@ -2198,8 +2531,8 @@
                 if (type) {
                     t.classList.add('selected-' + type);
                 }
-                if (rotation !== "0") {
-                    t.classList.add('rotate-' + rotation);
+                if (visualRotationStr !== "0") {
+                    t.classList.add('rotate-' + visualRotationStr);
                 }
                 if (flipped) {
                     t.classList.add('flipped');
@@ -2223,6 +2556,15 @@
                 }
             });
 
+            const editBtn = rowDiv.querySelector('.edit-btn');
+            if (editBtn) {
+                if (hasAnyCuts) {
+                    editBtn.style.backgroundColor = 'var(--edit-cuts-color)';
+                } else {
+                    editBtn.style.backgroundColor = '';
+                }
+            }
+
             debouncedLayout();
         }
 
@@ -2236,7 +2578,7 @@
             const createBtn = (text, onClick, type = null, color = null) => {
                 const btn = document.createElement('button');
                 btn.className = 'bar-button row-bar-btn';
-                
+
                 if (color) {
                     const circle = document.createElement('span');
                     circle.className = 'color-circle';
@@ -2262,13 +2604,21 @@
             const rotate = (delta) => {
                 let selection = shortcutSelections.get(key);
                 if (!selection) {
-                    selection = { videoName, projectPath, subfolder, projectName, type: '', rotation: "0" };
+                    selection = { videoName, projectPath, subfolder, projectName, type: '', rotation: "0", flipped: false };
                     shortcutSelections.set(key, selection);
                 }
                 let currentRot = parseInt(selection.rotation || "0");
                 let newRot = (currentRot + delta + 360) % 360;
                 selection.rotation = newRot.toString();
-                selection.buttonRotationTouched = true;
+
+                // Main page buttons now perform "hard" edits
+                selection.editModeRotated = true;
+                selection.editRotation = selection.rotation;
+                selection.editRotationType = 'uniform';
+                selection.isFullLength = true;
+                selection.markers = []; // Clear complex markers
+                selection.cuts = [];    // Clear cuts
+
                 updateRowUI(rowDiv, videoName, projectPath);
             };
 
@@ -2302,6 +2652,13 @@
                     shortcutSelections.set(key, selection);
                 }
                 selection.flipped = !selection.flipped;
+
+                // Main page flip now performs "hard" edit
+                selection.editModeRotated = true;
+                selection.editFlipped = selection.flipped;
+                selection.markers = []; // Clear complex markers
+                selection.cuts = [];    // Clear cuts
+
                 updateRowUI(rowDiv, videoName, projectPath);
             };
             leftGroup.appendChild(createBtn('H Flip', toggleFlip));
@@ -2343,7 +2700,7 @@
             leftGroup.appendChild(moveSelect);
 
             const editBtn = document.createElement('button');
-            editBtn.className = 'bar-button row-bar-btn';
+            editBtn.className = 'bar-button row-bar-btn edit-btn';
             editBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>';
             editBtn.title = 'Edit video';
             editBtn.onclick = (e) => {
@@ -2497,40 +2854,49 @@
             if (enableCategoriesPanelCheckbox.checked && categoriesPanel.style.display !== 'none') {
                 containerWidth -= categoriesPanel.offsetWidth;
             }
-            const isAuto = sizeSelector.value === 'auto';
-            const isCustom = sizeSelector.value === 'custom';
-            let globalScale = 1.0;
-            
-            if (isCustom) {
-                globalScale = (parseFloat(customSizeInput.value) || 100) / 100;
-            } else if (!isAuto) {
-                globalScale = parseFloat(sizeSelector.value);
+
+            const getScale = (selector) => {
+                const isAuto = selector.value === 'auto';
+                const isCustom = selector.value === 'custom';
+                if (isCustom) return (parseFloat(customSizeInput.value) || 100) / 100;
+                if (!isAuto) return parseFloat(selector.value);
+                return null; // Will calculate auto scale
+            };
+
+            let hScale = getScale(hSizeSelector);
+            let vScale = getScale(vSizeSelector);
+
+            let standardWidth = 320;
+            let standardHeight = 180;
+            let referenceThumb = null;
+
+            const allThumbs = Array.from(document.querySelectorAll('.thumbnail[data-original-width]'));
+            if (allThumbs.length > 0) {
+                // Use median width to be robust against both high-res and low-res outliers
+                const widths = allThumbs.map(t => parseFloat(t.dataset.originalWidth)).sort((a, b) => a - b);
+                const heights = allThumbs.map(t => parseFloat(t.dataset.originalHeight)).sort((a, b) => a - b);
+                standardWidth = widths[Math.floor(widths.length / 2)];
+                standardHeight = heights[Math.floor(heights.length / 2)];
+                referenceThumb = allThumbs.find(t => parseFloat(t.dataset.originalWidth) === standardWidth) || allThumbs[0];
             }
 
-            if (isAuto) {
-                const firstThumb = document.querySelector('.thumbnail[data-original-width]');
-                const ow = firstThumb ? parseFloat(firstThumb.dataset.originalWidth) : 320;
-                const oh = firstThumb ? parseFloat(firstThumb.dataset.originalHeight) : 180;
-                const isRot90 = firstThumb ? (firstThumb.classList.contains('rotate-90') || firstThumb.classList.contains('rotate-270')) : false;
-                const refW = isRot90 ? oh : ow;
-
-                // Available width for content inside thumbnails-container
-                // Thumbnails are inside landscape-row which is 100% width.
-                // thumbnails-container has padding: 10px 20px
+            const calcAutoScale = (refW) => {
                 const availableW = containerWidth - (paddingLR * 2) - 10; 
-                
-                // Target: 10 items per row, but min 210px each.
                 let numToFit = 10;
                 let targetScaledW = (availableW - (9 * 10)) / 10;
-                
                 if (targetScaledW < 210) {
-                    // Fit as many as possible at 210px
                     numToFit = Math.floor((availableW + 10) / (210 + 10));
                     if (numToFit < 1) numToFit = 1;
                     targetScaledW = (availableW - ((numToFit - 1) * 10)) / numToFit;
                 }
-                
-                globalScale = targetScaledW / refW;
+                return targetScaledW / refW;
+            };
+
+            if (hScale === null || vScale === null) {
+                const isRot90 = referenceThumb ? (referenceThumb.classList.contains('rotate-90') || referenceThumb.classList.contains('rotate-270')) : false;
+                const auto = calcAutoScale(isRot90 ? standardHeight : standardWidth);
+                if (hScale === null) hScale = auto;
+                if (vScale === null) vScale = auto;
             }
 
             elements.forEach(element => {
@@ -2540,12 +2906,22 @@
                         const thumb = wrapper.querySelector('.thumbnail');
                         if (!thumb.dataset.originalWidth) return;
                         
-                        const originalWidth = parseFloat(thumb.dataset.originalWidth);
-                        const originalHeight = parseFloat(thumb.dataset.originalHeight);
-                        const scaledWidth = originalWidth * globalScale;
-                        const scaledHeight = originalHeight * globalScale;
-                        
+                        let originalWidth = parseFloat(thumb.dataset.originalWidth);
+                        let originalHeight = parseFloat(thumb.dataset.originalHeight);
+
+                        if (originalWidth > standardWidth * 1.2 || originalHeight > standardHeight * 1.2) {
+                            const scale = Math.min(standardWidth / originalWidth, standardHeight / originalHeight);
+                            originalWidth *= scale;
+                            originalHeight *= scale;
+                        }
+
                         const isRotated90 = thumb.classList.contains('rotate-90') || thumb.classList.contains('rotate-270');
+                        // Effective orientation after rotation
+                        const isCurrentlyVertical = isRotated90 ? (originalWidth > originalHeight) : (originalHeight > originalWidth);
+                        const currentScale = isCurrentlyVertical ? vScale : hScale;
+
+                        const scaledWidth = originalWidth * currentScale;
+                        const scaledHeight = originalHeight * currentScale;
                         
                         if (isRotated90) {
                             wrapper.style.width = scaledHeight + 'px';
@@ -2591,10 +2967,11 @@
                 const initialRot = (initial && initial.rotation) || "0";
                 const initialFlipped = initial ? !!initial.flipped : false;
                 
-                return (sel.cuts && sel.cuts.length > 0) || 
-                       (sel.markers && sel.markers.length > 0) ||
-                       (sel.rotation !== initialRot) ||
-                       (!!sel.flipped !== initialFlipped);
+                // Only count edits if they were made in the current session OR if it's a UI metadata change
+                const isSessionEdit = sel.editModeRotated;
+                const isMetadataChange = (sel.rotation !== initialRot) || (!!sel.flipped !== initialFlipped);
+
+                return isSessionEdit || isMetadataChange || sel.deleteEditThumbnails;
             });
 
             const hasNewSelections = Array.from(shortcutSelections.entries()).some(([key, sel]) => {
@@ -2644,13 +3021,15 @@
             container.innerHTML = '';
 
             const categories = [
-                { id: 'edits', title: 'Video Edits (Rotations, Flips, Cuts)' },
+                { id: 'edits', title: 'New Video Edits (Current Session)' },
+                { id: 'prior_edits', title: 'Prior Edits (Recorded in Misc Data)' },
                 { id: 'shortcuts_new', title: 'New Shortcuts' },
                 { id: 'shortcuts_verify', title: 'Verify Existing Shortcuts' },
                 { id: 'shortcuts_delete', title: 'Delete Shortcuts' },
+                { id: 'file_delete', title: 'File Deletions' },
                 { id: 'moves', title: 'File Moves' },
-                { id: 'lua', title: 'LUA Script Updates (Rotations, Flips)' },
-                { id: 'categories', title: 'Category Updates' }
+                { id: 'categories', title: 'Category Updates' },
+                { id: 'thumb_cleanup', title: 'Thumbnail Cleanups' }
             ];
 
             categories.forEach(cat => {
@@ -2681,12 +3060,15 @@
             const selectionsToProcess = Array.from(shortcutSelections.values());
             const summaryActions = {
                 edits: [],
+                prior_edits: [],
                 shortcuts_new: [],
                 shortcuts_verify: [],
                 shortcuts_delete: [],
+                file_delete: [],
                 moves: [],
                 lua: [],
-                categories: []
+                categories: [],
+                thumb_cleanup: []
             };
 
             const displayedProjects = new Map(); // path -> name
@@ -2718,18 +3100,36 @@
                 '\$BaseDir = [System.IO.Path]::GetFullPath(\$BaseDir)',
                 '\$wshell = New-Object -ComObject WScript.Shell',
                 '\$newShortcuts = @()',
+                '# Robust Root detection',
+                '\$rootScFolder = \$null',
+                '\$searchDir = \$BaseDir',
+                'for (\$i = 0; \$i -lt 3; \$i++) {',
+                '    \$trySc = Join-Path -Path \$searchDir -ChildPath "sc"',
+                '    if (Test-Path -LiteralPath \$trySc) { \$rootScFolder = \$trySc; break }',
+                '    \$searchDir = Split-Path -Parent \$searchDir',
+                '    if (-not \$searchDir) { break }',
+                '}',
+                'if (-not \$rootScFolder) { \$rootScFolder = Join-Path -Path \$BaseDir -ChildPath "sc" }',
+                'Write-Host "Using Root SC Folder: \$rootScFolder" -ForegroundColor Gray',
                 '',
                 'function Resolve-PSPath {',
                 '    param([string]\$base, [string]\$relPath, [string]\$name, [string]\$sub)',
                 '    \$p = \$base',
                 '    if (\$relPath) { ',
-                '        \$p = (Join-Path -Path \$p -ChildPath \$relPath) ',
+                '        \$tryRel = Join-Path -Path \$p -ChildPath \$relPath',
+                '        if (Test-Path -LiteralPath \$tryRel) { \$p = \$tryRel }',
+                '        else {',
+                '            # Check if base IS the relPath (e.g. running from project folder)',
+                '            if (\$base.EndsWith(\$relPath, [System.StringComparison]::OrdinalIgnoreCase) -or (Split-Path -Leaf \$base) -eq \$relPath) {',
+                '                # base is already the target or inside it',
+                '            } else {',
+                '                \$p = \$tryRel',
+                '            }',
+                '        }',
                 '    } elseif (\$name) {',
-                '        \$tryPath = (Join-Path -Path \$p -ChildPath \$name)',
-                '        if (Test-Path -LiteralPath \$tryPath) { ',
-                '            \$p = \$tryPath ',
-                '        } else {',
-                '            Write-Host "DEBUG: Project name folder not found: \$tryPath" -ForegroundColor DarkGray',
+                '        if ((Split-Path -Leaf \$p) -ne \$name) {',
+                '            \$tryPath = (Join-Path -Path \$p -ChildPath \$name)',
+                '            if (Test-Path -LiteralPath \$tryPath) { \$p = \$tryPath }',
                 '        }',
                 '    }',
                 '    if (\$sub) { \$p = (Join-Path -Path \$p -ChildPath \$sub) }',
@@ -2748,19 +3148,60 @@
                 '    \$tempDir = (Join-Path -Path \$env:TEMP -ChildPath ([System.Guid]::NewGuid().ToString()))',
                 '    [System.IO.Directory]::CreateDirectory(\$tempDir) | Out-Null',
                 '    ',
-                '    # Use -noautorotate to get raw dimensions',
+                '    # Get video info',
                 '    \$duration = (ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 -i "\$sourcePath") -as [double]',
-                '    Write-Host "Duration: \$duration seconds"',
+                '    \$fps_raw = (ffprobe -v error -select_streams v:0 -show_entries stream=r_frame_rate -of default=noprint_wrappers=1:nokey=1 -i "\$sourcePath")',
+                '    \$fps = if (\$fps_raw.Contains("/")) { ',
+                '        \$parts = \$fps_raw -split "/"; [double]\$parts[0] / [double]\$parts[1]',
+                '    } else { [double]\$fps_raw }',
+                '    Write-Host "Duration: \$duration seconds, FPS: \$fps"',
                 '    ',
-                '    \$points = New-Object System.Collections.Generic.List[double]',
-                '    \$points.Add(0)',
-                '    \$points.Add(\$duration)',
-                '    if (\$markers) { foreach (\$m in \$markers) { \$points.Add(\$m.time) } }',
-                '    if (\$cuts) { foreach (\$c in \$cuts) { \$points.Add(\$c.start); \$points.Add(\$c.end) } }',
-                '    ',
-                '    \$sortedPoints = \$points | Sort-Object | Select-Object -Unique',
+                '    \$totalFrames = [Math]::Floor(\$duration * \$fps + 0.1)',
+                '    Write-Host "Duration: \$duration seconds, FPS: \$fps, Frames: \$totalFrames"',
                 '    ',
                 '    \$segments = @()',
+                '    \$currentSeg = \$null',
+                '    ',
+                '    for (\$f = 0; \$f -lt \$totalFrames; \$f++) {',
+                '        \$t = \$f / \$fps',
+                '        \$mid = (\$f + 0.5) / \$fps',
+                '        ',
+                '        # 1. Update Rotation State based on Markers (Rotation marker frame is inclusive)',
+                '        \$rotation = 0',
+                '        if (\$markers) { ',
+                '            foreach (\$m in \$markers) { ',
+                '                if (\$f -ge [Math]::Floor(\$m.time * \$fps + 0.1)) { \$rotation = \$m.rotation } ',
+                '            } ',
+                '        }',
+                '        ',
+                '        # 2. Check Cut State (Cuts are inclusive of both start and end frames)',
+                '        \$isCut = \$false',
+                '        if (\$cuts) { ',
+                '            foreach (\$c in \$cuts) { ',
+                '                \$startF = [Math]::Floor(\$c.start * \$fps + 0.1)',
+                '                \$endF = [Math]::Floor(\$c.end * \$fps - 0.1)',
+                '                if (\$f -ge \$startF -and \$f -le \$endF) { \$isCut = \$true; break } ',
+                '            } ',
+                '        }',
+                '        ',
+                '        if (\$isCut) {',
+                '            if (\$null -ne \$currentSeg) {',
+                '                \$currentSeg.end = \$t',
+                '                \$segments += \$currentSeg',
+                '                \$currentSeg = \$null',
+                '            }',
+                '            continue',
+                '        }',
+                '        ',
+                '        if (\$null -eq \$currentSeg) {',
+                '            \$currentSeg = @{ start = \$t; rotation = \$rotation }',
+                '        } elseif (\$currentSeg.rotation -ne \$rotation) {',
+                '            \$currentSeg.end = \$t',
+                '            \$segments += \$currentSeg',
+                '            \$currentSeg = @{ start = \$t; rotation = \$rotation }',
+                '        }',
+                '    }',
+                '    if (\$null -ne \$currentSeg) { \$currentSeg.end = \$duration; \$segments += \$currentSeg }',
                 '    ',
                 '    # Probe for initial dimensions (ignoring metadata rotation)',
                 '    \$metadata = (ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of csv=s=x:p=0 -i "\$sourcePath") -split "x"',
@@ -2768,73 +3209,51 @@
                 '    \$sh = [int]\$metadata[1]',
                 '    Write-Host "Coded Dimensions: \$sw x \$sh"',
                 '    ',
-                '    for (\$i = 0; \$i -lt \$sortedPoints.Count - 1; \$i++) {',
-                '        \$start = \$sortedPoints[\$i]',
-                '        \$end = \$sortedPoints[\$i+1]',
-                '        if (\$end - \$start -lt 0.001) { continue }',
-                '        ',
-                '        \$mid = (\$start + \$end) / 2',
-                '        \$isCut = \$false',
-                '        if (\$cuts) { foreach (\$c in \$cuts) { if (\$mid -ge \$c.start -and \$mid -lt \$c.end) { \$isCut = \$true; break } } }',
-                '        if (\$isCut) { continue }',
-                '        ',
-                '        \$rotation = 0',
-                '        if (\$markers) { foreach (\$m in \$markers) { if (\$start -ge \$m.time) { \$rotation = \$m.rotation } } }',
-                '        ',
-                '        \$segments += @{ start = \$start; end = \$end; rotation = \$rotation }',
-                '    }',
-                '    ',
                 '    if (\$segments.Count -eq 0) { Write-Host "All content cut for \$sourcePath"; return }',
                 '    ',
-                '    # Determine target dimensions: if any segment is rotated 90/270, use swapped dims as target',
+                '    # Check for audio',
+                '    \$hasAudio = (ffprobe -v error -select_streams a:0 -show_entries stream=index -of default=noprint_wrappers=1:nokey=1 -i "\$sourcePath") -ne \$null',
+                '    ',
+                '    # Determine target dimensions',
                 '    \$hasRotation = \$false',
                 '    foreach (\$seg in \$segments) { if (\$seg.rotation -eq 90 -or \$seg.rotation -eq 270) { \$hasRotation = \$true; break } }',
-                '    ',
-                '    if (\$hasRotation) {',
-                '        \$targetW = \$sh; \$targetH = \$sw',
-                '    } else {',
-                '        \$targetW = \$sw; \$targetH = \$sh',
-                '    }',
-                '    ',
-                '    # Ensure even dimensions for libx264',
+                '    \$targetW = if (\$hasRotation) { \$sh } else { \$sw }',
+                '    \$targetH = if (\$hasRotation) { \$sw } else { \$sh }',
                 '    \$targetW = [Math]::Ceiling(\$targetW / 2) * 2',
                 '    \$targetH = [Math]::Ceiling(\$targetH / 2) * 2',
                 '    ',
-                '    \$listPath = (Join-Path -Path \$tempDir -ChildPath "list.txt")',
-                '    \$segIndex = 0',
-                '    foreach (\$seg in \$segments) {',
-                '        \$outSeg = (Join-Path -Path \$tempDir -ChildPath ("seg{0:D3}.mp4" -f \$segIndex++))',
+                '    \$filterPath = (Join-Path -Path \$tempDir -ChildPath "filter.txt")',
+                '    \$vFilters = @()',
+                '    \$aFilters = @()',
+                '    for (\$i = 0; \$i -lt \$segments.Count; \$i++) {',
+                '        \$seg = \$segments[\$i]',
+                '        \$vName = "v\$i"',
+                '        \$aName = "a\$i"',
+                '        \$startF = [Math]::Floor(\$seg.start * \$fps + 0.1)',
+                '        \$endF = [Math]::Floor(\$seg.end * \$fps + 0.1)',
                 '        \$transpose = ""',
-                '        if (\$seg.rotation -eq 90) { \$transpose = "transpose=1" }',
-                '        elseif (\$seg.rotation -eq 180) { \$transpose = "transpose=1,transpose=1" }',
-                '        elseif (\$seg.rotation -eq 270) { \$transpose = "transpose=2" }',
-                '        ',
-                '        \$vfArr = @()',
-                '        if (\$transpose) { \$vfArr += \$transpose }',
-                '        if (\$flipped) { \$vfArr += "hflip" }',
-                '        ',
-                '        # Current dimensions of this segment AFTER rotation',
-                '        if (\$seg.rotation -eq 90 -or \$seg.rotation -eq 270) { \$curW = \$sh; \$curH = \$sw }',
-                '        else { \$curW = \$sw; \$curH = \$sh }',
-                '        ',
-                '        # Apply scale/pad ONLY if rotated dimensions mismatch target',
-                '        if (\$curW -ne \$targetW -or \$curH -ne \$targetH) {',
-                '            \$vfArr += "scale=w=\$($targetW):h=\$($targetH):force_original_aspect_ratio=decrease,pad=\$($targetW):\$($targetH):(ow-iw)/2:(oh-ih)/2,setsar=1"',
-                '        } elseif (\$vfArr.Count -gt 0) {',
-                '            \$vfArr += "setsar=1"',
+                '        if (\$seg.rotation -eq 90) { \$transpose = ",transpose=1" }',
+                '        elseif (\$seg.rotation -eq 180) { \$transpose = ",transpose=1,transpose=1" }',
+                '        elseif (\$seg.rotation -eq 270) { \$transpose = ",transpose=2" }',
+                '        \$flip = if (\$flipped) { ",hflip" } else { "" }',
+                '        \$vFilters += "[0:v]trim=start_frame=\$startF:end_frame=\$endF,setpts=PTS-STARTPTS\$transpose\$flip,scale=w=\$targetW:h=\$targetH:force_original_aspect_ratio=decrease,pad=\$targetW:\$targetH:(ow-iw)/2:(oh-ih)/2,setsar=1[\$vName]"',
+                '        if (\$hasAudio) {',
+                '            \$vStart = (\$seg.start).ToString("F6", [System.Globalization.CultureInfo]::InvariantCulture)',
+                '            \$vEnd = (\$seg.end).ToString("F6", [System.Globalization.CultureInfo]::InvariantCulture)',
+                '            \$aFilters += "[0:a]atrim=start=\$vStart:end=\$vEnd,asetpts=PTS-STARTPTS[\$aName]"',
                 '        }',
-                '        ',
-                '        \$vf = \$vfArr -join ","',
-                '        \$vfArg = if (\$vf) { @("-vf", \$vf) } else { @() }',
-                '        ',
-                '        \$dur = (\$seg.end - \$seg.start).ToString("F3")',
-                '        Write-Host "  > Encoding segment \$($segIndex): \$($seg.start) to \$($seg.end) (Rot: \$($seg.rotation))"',
-                '        ffmpeg -y -noautorotate -i "\$sourcePath" -ss \$(\$seg.start.ToString("F3")) -t "\$dur" @vfArg -c:v libx264 -crf 17 -preset veryslow -c:a copy -avoid_negative_ts make_zero -metadata:s:v:0 rotate=0 -movflags +faststart "\$outSeg"',
-                '        [System.IO.File]::AppendAllLines(\$listPath, [string[]](\"file \'\$outSeg\'\"))',
                 '    }',
+                '    \$vConcat = (\$segments | ForEach-Object -Begin {\$idx=0} -Process {"[v\$idx]" ; \$idx++}) -join ""',
+                '    \$aConcat = if (\$hasAudio) { (\$segments | ForEach-Object -Begin {\$idx=0} -Process {"[a\$idx]" ; \$idx++}) -join "" } else { "" }',
+                '    \$finalV = "\$vConcat concat=n=\$(\$segments.Count):v=1:a=0[v]"',
+                '    \$finalA = if (\$hasAudio) { "; \$aConcat concat=n=\$(\$segments.Count):v=0:a=1[a]" } else { "" }',
+                '    \$fullFilter = (\$vFilters + \$aFilters + \$finalV) -join "; "',
+                '    \$fullFilter += \$finalA',
+                '    \$fullFilter | Out-File -LiteralPath \$filterPath -Encoding utf8',
                 '    ',
-                '    Write-Host "  > Concatenating segments..."',
-                '    ffmpeg -y -f concat -safe 0 -i "\$listPath" -c copy -metadata:s:v:0 rotate=0 -movflags +faststart "\$targetPath"',
+                '    Write-Host "  > Encoding with filter_complex..."',
+                '    \$mapArgs = if (\$hasAudio) { @("-map", "[v]", "-map", "[a]") } else { @("-map", "[v]") }',
+                '    ffmpeg -y -noautorotate -i "\$sourcePath" -filter_complex_script "\$filterPath" @mapArgs -c:v libx264 -crf 17 -preset veryslow -c:a aac -b:a 192k -metadata:s:v:0 rotate=0 -movflags +faststart "\$targetPath"',
                 '    Remove-Item -LiteralPath "\$tempDir" -Recurse -Force',
                 '}',
                 '',
@@ -3061,20 +3480,29 @@
                 const initialFlipped = initial ? !!initial.flipped : false;
 
                 const hasCuts = sel.cuts && sel.cuts.length > 0;
-                let markersChanged = sel.markers && sel.markers.length > 0;
-                if (markersChanged && sel.markers.length === 1 && sel.markers[0].frame === 0) {
-                    if (sel.markers[0].rotation.toString() === initialRot) {
-                        markersChanged = false;
-                    }
-                }
-                const needsProcessing = hasCuts || markersChanged;
+                const markersChanged = sel.markers && sel.markers.length > 0;
+                const editRotationChanged = sel.editRotation && sel.editRotation !== "0";
+                const editFlippedChanged = !!sel.editFlipped;
+
+                const needsProcessing = (hasCuts || markersChanged || editRotationChanged || editFlippedChanged) && sel.editModeRotated;
 
                 const rotationChanged = sel.rotation !== initialRot;
                 const flippedChanged = !!sel.flipped !== initialFlipped;
                 const hasMetadataChanges = rotationChanged || flippedChanged;
 
                 const selectionType = sel.type;
-                if (!selectionType && !needsProcessing && !hasMetadataChanges && !sel.targetProject) return;
+
+                // Prior edits that aren't being re-processed this session
+                if (!sel.editModeRotated && (hasCuts || markersChanged || editRotationChanged || editFlippedChanged)) {
+                    let priorDesc = `${sel.videoName} (`;
+                    if (sel.editRotation && sel.editRotation !== "0") priorDesc += `Rot ${sel.editRotation}°, `;
+                    if (sel.editFlipped) priorDesc += "Flip, ";
+                    if (sel.cuts && sel.cuts.length > 0) priorDesc += `${sel.cuts.length} Cuts, `;
+                    priorDesc = priorDesc.replace(/, $/, ")").replace(/\($/, "");
+                    summaryActions.prior_edits.push(priorDesc);
+                }
+
+                if (!selectionType && !needsProcessing && !hasMetadataChanges && !sel.targetProject && !sel.deleteEditThumbnails) return;
                 if (selectionType === 'delete-sc') return;
 
                 const escapedVideoName = escapePSString(sel.videoName);
@@ -3086,13 +3514,13 @@
 
                 if (needsProcessing) {
                     let editDesc = `${sel.videoName} (`;
-                    if (sel.rotation && sel.rotation !== "0") editDesc += `Rotate ${sel.rotation}°, `;
-                    if (sel.flipped) editDesc += "H-Flip, ";
+                    if (sel.editRotation && sel.editRotation !== "0") editDesc += `Rotate ${sel.editRotation}°, `;
+                    if (sel.editFlipped) editDesc += "H-Flip, ";
                     if (sel.cuts && sel.cuts.length > 0) editDesc += `${sel.cuts.length} Cuts, `;
                     editDesc = editDesc.replace(/, $/, ")").replace(/\($/, "");
                     summaryActions.edits.push(editDesc);
 
-                    scriptLines.push(`    # Processing edits for: ${sel.projectPath}\\${sel.videoName}`);
+                    scriptLines.push(`    # Processing edits for: ${sel.projectPath}\\${sel.videoName} (New session edits)`);
                     const projToUse = isMoved ? sel.targetProject : sel.projectPath;
                     const nameToUse = isMoved ? sel.targetProject : sel.projectName;
                     const res = getPSPathRes('\$BaseDir', projToUse, nameToUse, sel.subfolder);
@@ -3101,35 +3529,27 @@
                     scriptLines.push(`    \$cuts = @()`);
                     if (sel.cuts) {
                         sel.cuts.forEach(c => {
-                            scriptLines.push(`    \$cuts += @{ start = ${c.start}; end = ${c.end} }`);
+                            scriptLines.push(`    \$cuts += @{ start = ${c.start.toFixed(6)}; end = ${c.end.toFixed(6)} }`);
                         });
                     }
                     scriptLines.push(`    \$markers = @()`);
                     if (sel.markers) {
                         sel.markers.forEach(m => {
-                            // markers in selection use 'frame', we need 'time'
-                            const fps = sel.fps || 30;
-                            const time = m.frame / fps;
-                            scriptLines.push(`    \$markers += @{ time = ${time}; rotation = ${m.rotation} }`);
+                            scriptLines.push(`    \$markers += @{ time = ${m.time.toFixed(6)}; rotation = ${m.rotation} }`);
                         });
                     }
-                    if ((!sel.markers || sel.markers.length === 0) && sel.rotation && sel.rotation !== "0") {
-                        scriptLines.push(`    \$markers += @{ time = 0; rotation = ${sel.rotation} }`);
+                    if ((!sel.markers || sel.markers.length === 0) && sel.editRotation && sel.editRotation !== "0") {
+                        const rotNum = parseInt(sel.editRotation) || 0;
+                        scriptLines.push(`    \$markers += @{ time = 0; rotation = ${rotNum} }`);
                     }
 
                     scriptLines.push(`    \$processedVideoPath = (Join-Path -Path (Split-Path -Parent \$sourceVideoPath) -ChildPath ('processed_' + '${escapedVideoName}'))`);
-                    const isFlipped = sel.flipped ? '\$true' : '\$false';
+                    const isFlipped = sel.editFlipped ? '\$true' : '\$false';
                     scriptLines.push(`    Process-Video -sourcePath \$sourceVideoPath -targetPath \$processedVideoPath -cuts \$cuts -markers \$markers -flipped ${isFlipped}`);
                     scriptLines.push(`    if (Test-Path -LiteralPath \"$processedVideoPath\") {`);
+                    scriptLines.push(`        if (Test-Path -LiteralPath \"$sourceVideoPath\") { Remove-Item -LiteralPath \"$sourceVideoPath\" -Force }`);
                     scriptLines.push(`        Move-Item -LiteralPath \"$processedVideoPath\" -Destination \"$sourceVideoPath\" -Force`);
                     scriptLines.push(`        Write-Host "Applied edits to: ${escapedVideoName}"`);
-                    
-                    // Clear rotation metadata for this file since it's now burnt-in
-                    const pToUse = isMoved ? sel.targetProject : sel.projectPath;
-                    const nToUse = isMoved ? sel.targetProject : sel.projectName;
-                    const projPathVar = `(${getPSPathRes('\$BaseDir', pToUse, nToUse, '')})`;
-                    const rotFileVar = `(Join-Path -Path ${projPathVar} -ChildPath 'rotation_data.txt')`;
-                    scriptLines.push(`        Update-RotationData -filePath ${rotFileVar} -toAdd @{} -toRemove @('${escapedVideoName}')`);
                     scriptLines.push(`    }`);
                 }
 
@@ -3137,6 +3557,19 @@
                 const tnToUse = isMoved ? sel.targetProject : sel.projectName;
                 const targetBaseRes = getPSPathRes('\$BaseDir', tpToUse, tnToUse, sel.subfolder);
                 let targetPathConstruction = `(Join-Path -Path (${targetBaseRes}) -ChildPath '${escapedVideoName}')`;
+
+                if (sel.deleteEditThumbnails) {
+                    summaryActions.thumb_cleanup.push(`${sel.videoName}: Delete Edit Thumbnails`);
+                    const thumbBase = sel.videoName.substring(0, sel.videoName.lastIndexOf('.'));
+                    const escapedThumbBase = escapePSString(thumbBase);
+                    const projRes = getPSPathRes('\$BaseDir', sel.projectPath, sel.projectName, '');
+                    scriptLines.push(`    # Deleting Edit Thumbnails for: ${sel.videoName}`);
+                    scriptLines.push(`    \$editThumbDir = (Join-Path -Path ${projRes} -ChildPath 'Edit Thumbnails')`);
+                    scriptLines.push(`    if (Test-Path -LiteralPath \$editThumbDir) {`);
+                    scriptLines.push(`        Get-ChildItem -LiteralPath \$editThumbDir | Where-Object { \$_.Name -like '${escapedThumbBase}_*' } | Remove-Item -Force`);
+                    scriptLines.push(`        Write-Host "Deleted edit thumbnails for: ${escapedVideoName}"`);
+                    scriptLines.push(`    }`);
+                }
 
                 if (selectionType) {
                     scriptLines.push(`    # Managing shortcuts for: ${sel.projectPath}\\${sel.videoName} (Selection: ${selectionType})`);
@@ -3187,10 +3620,15 @@
             if (fileDeletions.length > 0) {
                 scriptLines.push('# --- Deleting Videos and Thumbnails ---');
                 fileDeletions.forEach(sel => {
-                    summaryActions.shortcuts_delete.push(`${sel.videoName} (Permanent Delete)`);
+                    const key = sel.projectPath + '|' + sel.videoName;
+                    const initial = initialShortcutSelections.get(key);
+
+                    summaryActions.file_delete.push(`${sel.videoName} (Permanent Delete)`);
+                    if (initial && initial.type) {
+                        summaryActions.shortcuts_delete.push(`${sel.videoName} (Associated Shortcuts)`);
+                    }
+
                     const escapedVideoName = escapePSString(sel.videoName);
-                    const escapedProjectPath = escapePSString(sel.projectPath);
-                    const escapedSubfolder = escapePSString(sel.subfolder);
                     
                     const res = getPSPathRes('\$BaseDir', sel.projectPath, sel.projectName, sel.subfolder);
                     scriptLines.push(`\$videoPath = (Join-Path -Path (${res}) -ChildPath '${escapedVideoName}')`);
@@ -3213,6 +3651,12 @@
                     scriptLines.push(`        Write-Host "Deleted thumbnails for ${escapedVideoName} in \$dirName"`);
                     scriptLines.push(`    }`);
                     scriptLines.push(`}`);
+
+                    // Also remove any existing shortcuts for this deleted file
+                    scriptLines.push(`\$subfolderScPath = (Join-Path -Path \$projectPath -ChildPath 'sc')`);
+                    scriptLines.push(`Manage-Shortcut -folderPath \$rootScFolder -videoName '${escapedVideoName}' -targetPath '' -shouldExist \$false`);
+                    scriptLines.push(`Manage-Shortcut -folderPath \$subfolderScPath -videoName '${escapedVideoName}' -targetPath '' -shouldExist \$false`);
+
                     scriptLines.push('');
                 });
             }
@@ -3324,14 +3768,35 @@
                 if (!miscUpdates.has(projectPath)) miscUpdates.set(projectPath, {});
                 
                 const cats = videoCategories.get(key);
-                const isEditRotated = editModeRotatedVideos.get(key) || (shortcutSelections.has(key) && shortcutSelections.get(key).editModeRotated);
+                const sel = shortcutSelections.get(key);
                 
                 let dataParts = [];
                 if (cats && cats.size > 0) {
                     dataParts.push(`cats:${Array.from(cats).join(',')}`);
                 }
-                if (isEditRotated) {
-                    dataParts.push('edit_rotated:true');
+
+                // Minimal edit state persistence (only flags for UI icons)
+                const hasSessionRotation = sel && sel.editRotationType && sel.editRotationType !== 'none';
+                const hasSessionCuts = sel && sel.cuts && sel.cuts.length > 0;
+                const hasSessionOther = sel && (sel.deleteEditThumbnails || sel.editFlipped);
+
+                // Note: editModeRotatedVideos is a Map of loaded strings or booleans
+                const hasLoadedEdit = editModeRotatedVideos.has(key);
+
+                // If it was edited in THIS session, use session state
+                if (sel && sel.editModeRotated) {
+                    if (hasSessionRotation) dataParts.push('edit_rotated:true');
+                    if (hasSessionCuts) dataParts.push('has_cuts:true');
+                    if (!hasSessionRotation && !hasSessionCuts && hasSessionOther) dataParts.push('edit_rotated:true');
+                } else if (hasLoadedEdit) {
+                    // Restore loaded flags if not overwritten by a session commit
+                    const existing = editModeRotatedVideos.get(key);
+                    if (typeof existing === 'string') {
+                        if (existing.includes('edit_rot:') || existing.includes('edit_rotated:true')) dataParts.push('edit_rotated:true');
+                        if (existing.includes('cuts:') || existing.includes('has_cuts:true')) dataParts.push('has_cuts:true');
+                    } else {
+                        dataParts.push('edit_rotated:true');
+                    }
                 }
                 
                 if (dataParts.length > 0) {
@@ -3377,151 +3842,7 @@
             }
 
             if (rotationUpdates.size > 0) {
-                scriptLines.push('# --- Updating Rotation Data ---');
-                rotationUpdates.forEach((update, projectPath) => {
-                    const projectName = displayedProjects.get(projectPath) || projectPath;
-                    const res = getPSPathRes('\$BaseDir', projectPath, projectName, '');
-                    const rotationFileVar = `(Join-Path -Path ${res} -ChildPath 'rotation_data.txt')`;
-                    const escapedProjectPath = escapePSString(projectPath);
-                    
-                    scriptLines.push(`\$toAdd = @{`);
-                    for (const [vName, rot] of Object.entries(update.toAdd)) {
-                        scriptLines.push(`    '${escapePSString(vName)}' = '${rot}'`);
-                    }
-                    scriptLines.push(`}`);
-                    scriptLines.push(`\$toRemove = @(`);
-                    update.toRemove.forEach(vName => {
-                        scriptLines.push(`    '${escapePSString(vName)}'`);
-                    });
-                    scriptLines.push(`)`);
-                    scriptLines.push(`Update-RotationData -filePath ${rotationFileVar} -toAdd \$toAdd -toRemove \$toRemove`);
-                    scriptLines.push(`Write-Host "Surgically updated rotation_data.txt for ${escapedProjectPath || '(Root)'}"`);
-                });
-                scriptLines.push('');
-
-                scriptLines.push('# --- Update Central LUA Rotation File ---');
-                scriptLines.push("\$luaPath = 'C:\\Bridge\\misc\\tools\\mpv-x86_64-v3-20260418-git-4377cce\\portable_config\\scripts\\autorotate.lua'");
-                scriptLines.push('\$script:rotatedFiles = @{}');
-                    
-                shortcutSelections.forEach((sel, key) => {
-                        const initial = initialShortcutSelections.get(key);
-                        const initialRot = (initial && initial.rotation) || "0";
-                        const currentRot = sel.rotation || "0";
-                        if (sel.buttonRotationTouched) {
-                            summaryActions.lua.push(`${sel.videoName}: Rotate ${initialRot}° -> ${currentRot}°`);
-                        }
-                        if (sel.buttonRotationTouched) {
-                            scriptLines.push(`\$script:rotatedFiles['${escapePSString(sel.videoName)}'] = ${currentRot}`);
-                    }
-                });
-
-                scriptLines.push('\$allRotations = @{}');
-                scriptLines.push('if (Test-Path -LiteralPath \"$luaPath\") {');
-                scriptLines.push('    \$existingContent = Get-Content -LiteralPath \"$luaPath\" -Raw');
-                scriptLines.push('    if (\$existingContent -match \'(?s)local rotations = \\{(.*?)\\}\') {');
-                scriptLines.push('        \$inner = \$matches[1]');
-                scriptLines.push('        \$entries = \$inner -split \',\'');
-                scriptLines.push('        foreach (\$entry in \$entries) {');
-                scriptLines.push('            if (\$entry -match "\\[[\'\\"\" ]*(.*?)[\'\\"\" ]*\\]\\s*=\\s*[\'\\"\" ]?(\\d+)[\'\\"\" ]?") {');
-                scriptLines.push('                \$allRotations[\$matches[1]] = \$matches[2]');
-                scriptLines.push('            }');
-                scriptLines.push('        }');
-                scriptLines.push('    }');
-                scriptLines.push('}');
-                scriptLines.push('foreach (\$file in \$script:rotatedFiles.Keys) { \$allRotations[\$file] = \$script:rotatedFiles[\$file] }');
-                scriptLines.push('if (\$allRotations.Count -gt 0) {');
-                scriptLines.push('    \$luaDir = Split-Path -Parent \$luaPath');
-                scriptLines.push('    if (-not (Test-Path -LiteralPath \$luaDir)) { [System.IO.Directory]::CreateDirectory(\$luaDir) | Out-Null }');
-                scriptLines.push('    \$luaContent = @()');
-                scriptLines.push("    \$luaContent += 'local rotations = {'");
-                scriptLines.push('    foreach (\$file in \$allRotations.Keys) {');
-                scriptLines.push('        \$rot = \$allRotations[\$file]');
-                scriptLines.push("        \$escapedFile = \$file.Replace(\"'\", \"\\\\'\")");
-                scriptLines.push("        \$luaContent += \"    ['\$escapedFile'] = \$rot,\"");
-                scriptLines.push("    }");
-                scriptLines.push("    \$luaContent += '}'");
-                scriptLines.push("    \$luaContent += ''");
-                scriptLines.push("    \$luaContent += 'mp.register_event(\"file-loaded\", function()'");
-                scriptLines.push("    \$luaContent += '    local path = mp.get_property(\"path\")'");
-                scriptLines.push("    \$luaContent += '    if not path then return end'");
-                scriptLines.push("    \$luaContent += ''");
-                scriptLines.push("    \$luaContent += '    mp.set_property(\"video-rotate\", 0)'");
-                scriptLines.push("    \$luaContent += ''");
-                scriptLines.push("    \$luaContent += '    local filename = path:match(\"([^/\\\\\\\\]+)\$\") or path'");
-                scriptLines.push("    \$luaContent += ''");
-                scriptLines.push("    \$luaContent += '    if rotations[filename] then'");
-                scriptLines.push("    \$luaContent += '        mp.set_property(\"video-rotate\", rotations[filename])'");
-                scriptLines.push("    \$luaContent += '    end'");
-                scriptLines.push("    \$luaContent += 'end)'");
-                scriptLines.push('    \$luaContent | Out-File -LiteralPath \"$luaPath\" -Encoding utf8');
-                scriptLines.push('    Write-Host "Updated MPV autorotate script at: \$luaPath"');
-                scriptLines.push('}');
-                scriptLines.push('');
-            }
-
-            // --- Update Central LUA Flip File ---
-                const hasFlipChanges = Array.from(shortcutSelections.entries()).some(([key, sel]) => {
-                    const initial = initialShortcutSelections.get(key);
-                    const initialFlipped = initial ? !!initial.flipped : false;
-                    return !!sel.flipped !== initialFlipped;
-                });
-
-                if (hasFlipChanges || Array.from(shortcutSelections.values()).some(sel => sel.flipped)) {
-                scriptLines.push('# --- Update Central LUA Flip File ---');
-                scriptLines.push("\$flipLuaPath = 'C:\\Bridge\\misc\\tools\\mpv-x86_64-v3-20260418-git-4377cce\\portable_config\\scripts\\flip.lua'");
-                scriptLines.push('\$script:flippedFiles = @{}');
-                    
-                    shortcutSelections.forEach((sel, key) => {
-                        const initial = initialShortcutSelections.get(key);
-                        const initialFlipped = initial ? !!initial.flipped : false;
-                        if (!!sel.flipped !== initialFlipped) {
-                            summaryActions.lua.push(`${sel.videoName}: H-Flip ${initialFlipped ? 'ON' : 'OFF'} -> ${sel.flipped ? 'ON' : 'OFF'}`);
-                        }
-                        if (sel.flipped) {
-                            scriptLines.push(`\$script:flippedFiles['${escapePSString(sel.videoName)}'] = 'hflip'`);
-                        }
-                });
-
-                scriptLines.push('\$allFlips = @{}');
-                scriptLines.push('if (Test-Path -LiteralPath \"$flipLuaPath\") {');
-                scriptLines.push('    \$existingFlipContent = Get-Content -LiteralPath \"$flipLuaPath\" -Raw');
-                scriptLines.push('    if (\$existingFlipContent -match \'(?s)local flips = \\{(.*?)\\}\') {');
-                scriptLines.push('        \$innerFlip = \$matches[1]');
-                scriptLines.push('        \$flipEntries = \$innerFlip -split \',\'');
-                scriptLines.push('        foreach (\$fEntry in \$flipEntries) {');
-                scriptLines.push('            if (\$fEntry -match "\\[[\'\\"\" ]*(.*?)[\'\\"\" ]*\\]\\s*=\\s*[\'\\"\" ]*(.*?)[\'\\"\" ]*") {');
-                scriptLines.push('                \$allFlips[\$matches[1]] = \$matches[2]');
-                scriptLines.push('            }');
-                scriptLines.push('        }');
-                scriptLines.push('    }');
-                scriptLines.push('}');
-                scriptLines.push('foreach (\$fFile in \$script:flippedFiles.Keys) { \$allFlips[\$fFile] = \$script:flippedFiles[\$fFile] }');
-                scriptLines.push('if (\$allFlips.Count -gt 0) {');
-                scriptLines.push('    \$flipLuaDir = Split-Path -Parent \$flipLuaPath');
-                scriptLines.push('    if (-not (Test-Path -LiteralPath \$flipLuaDir)) { [System.IO.Directory]::CreateDirectory(\$flipLuaDir) | Out-Null }');
-                scriptLines.push('    \$flipLuaContent = @()');
-                scriptLines.push("    \$flipLuaContent += 'local flips = {'");
-                scriptLines.push('    foreach (\$fFile in \$allFlips.Keys) {');
-                scriptLines.push('        \$filter = \$allFlips[\$fFile]');
-                scriptLines.push("        \$escapedFFile = \$fFile.Replace(\"'\", \"\\\\'\")");
-                scriptLines.push("        \$flipLuaContent += \"    ['\$escapedFFile'] = '\$filter',\"");
-                scriptLines.push("    }");
-                scriptLines.push("    \$flipLuaContent += '}'");
-                scriptLines.push("    \$flipLuaContent += ''");
-                scriptLines.push("    \$flipLuaContent += 'mp.register_event(\"file-loaded\", function()'");
-                scriptLines.push("    \$flipLuaContent += '    local path = mp.get_property(\"path\")'");
-                scriptLines.push("    \$flipLuaContent += '    local filename = path:match(\"^.+[\\\\\\\\/](.+)\$\") or path'");
-                scriptLines.push("    \$flipLuaContent += ''");
-                scriptLines.push("    \$flipLuaContent += '    mp.command(\"vf remove @flip\")'");
-                scriptLines.push("    \$flipLuaContent += ''");
-                scriptLines.push("    \$flipLuaContent += '    if flips[filename] then'");
-                scriptLines.push("    \$flipLuaContent += '        local filter = flips[filename]'");
-                scriptLines.push("    \$flipLuaContent += '        mp.commandv(\"vf\", \"add\", \"@flip:\" .. filter)'");
-                scriptLines.push("    \$flipLuaContent += '    end'");
-                scriptLines.push("    \$flipLuaContent += 'end)'");
-                scriptLines.push('    \$flipLuaContent | Out-File -LiteralPath \"$flipLuaPath\" -Encoding utf8');
-                scriptLines.push('    Write-Host "Updated MPV flip script at: \$flipLuaPath"');
-                scriptLines.push('}');
+                scriptLines.push('# --- Note: Rotation/Flip data now handled via physical video processing ---');
                 scriptLines.push('');
             }
 
@@ -3638,8 +3959,37 @@
                                     });
                                     initialVideoCategories.set(key, new Set(cats));
                                 }
-                            } else if (part === 'edit_rotated:true') {
-                                editModeRotatedVideos.set(key, true);
+                            } else if (part === 'edit_rotated:true' || part === 'has_cuts:true' || part.startsWith('edit_rot:') || part.startsWith('cuts:') || part.startsWith('markers:')) {
+                                // Track existence for UI but do not populate details
+                                // We simplify the flag to prevent complex strings from leaking into logic
+                                let simplifiedFlag = 'edit_rotated:true';
+                                if (part === 'has_cuts:true' || part.startsWith('cuts:')) simplifiedFlag = 'has_cuts:true';
+
+                                if (!editModeRotatedVideos.has(key)) {
+                                    editModeRotatedVideos.set(key, simplifiedFlag);
+                                } else {
+                                    const existing = editModeRotatedVideos.get(key);
+                                    if (!existing.includes(simplifiedFlag)) {
+                                        editModeRotatedVideos.set(key, existing + '|' + simplifiedFlag);
+                                    }
+                                }
+
+                                if (!shortcutSelections.has(key)) {
+                                    shortcutSelections.set(key, {
+                                        videoName: videoName,
+                                        projectPath: projectPath,
+                                        subfolder: '',
+                                        type: '', rotation: "0", flipped: false
+                                    });
+                                }
+                                const sel = shortcutSelections.get(key);
+
+                                if (part.startsWith('edit_rot:') || part === 'edit_rotated:true') {
+                                    sel.loadedEditRotated = true;
+                                }
+                                if (part.startsWith('cuts:') || part === 'has_cuts:true') {
+                                    sel.loadedHasCuts = true;
+                                }
                             }
                         });
                     }
@@ -4179,19 +4529,33 @@
                         const rotation = rotData.rotation;
                         const flipped = rotData.flipped;
 
-                        if ((initialShortcutType || rotation !== "0" || flipped) && currentMode !== 'playlist-root' && currentMode !== 'update-playlist-root') {
-                            const key = project.path + '|' + videoFile.name;
-                            const selectionData = { 
+                        const key = project.path + '|' + videoFile.name;
+                        const loadedEditState = editModeRotatedVideos.get(key);
+
+                        let selectionData = shortcutSelections.get(key);
+                        if (!selectionData && (initialShortcutType || rotation !== "0" || flipped || loadedEditState) && currentMode !== 'playlist-root' && currentMode !== 'update-playlist-root') {
+                            selectionData = {
                                 videoName: videoFile.name, projectPath: project.path, subfolder: videoFile.subfolder,
                                 projectName: project.name,
                                 type: initialShortcutType || '', rotation: rotation, flipped: flipped,
                                 buttonRotationTouched: false
                             };
                             shortcutSelections.set(key, selectionData);
-                            initialShortcutSelections.set(key, { 
-                                type: initialShortcutType, rotation: rotation, flipped: flipped, 
-                                subfolder: videoFile.subfolder, projectName: project.name 
-                            });
+                        }
+
+                        if (selectionData) {
+                            selectionData.subfolder = videoFile.subfolder;
+                            selectionData.projectName = project.name;
+                            if (loadedEditState) {
+                                // Use loaded flags for UI display only
+                                selectionData.editModeRotated = false;
+                            }
+                            if (!initialShortcutSelections.has(key)) {
+                                initialShortcutSelections.set(key, {
+                                    type: initialShortcutType, rotation: rotation, flipped: flipped,
+                                    subfolder: videoFile.subfolder, projectName: project.name
+                                });
+                            }
                         }
 
                         canvasElements.push(rowDiv);
@@ -4776,7 +5140,17 @@
                 '\$script:rotatedFiles = @{}',
                 '\$wshell = New-Object -ComObject WScript.Shell',
                 '\$newShortcuts = @()',
-                '\$rootScFolder = [System.IO.Path]::GetFullPath((Join-Path -Path \$BaseDir -ChildPath \'sc\'))',
+                '# Robust Root detection',
+                '\$rootScFolder = \$null',
+                '\$searchDir = \$BaseDir',
+                'for (\$i = 0; \$i -lt 3; \$i++) {',
+                '    \$trySc = Join-Path -Path \$searchDir -ChildPath "sc"',
+                '    if (Test-Path -LiteralPath \$trySc) { \$rootScFolder = \$trySc; break }',
+                '    \$searchDir = Split-Path -Parent \$searchDir',
+                '    if (-not \$searchDir) { break }',
+                '}',
+                'if (-not \$rootScFolder) { \$rootScFolder = Join-Path -Path \$BaseDir -ChildPath "sc" }',
+                '\$rootScFolder = [System.IO.Path]::GetFullPath(\$rootScFolder)',
                 '',
                 'function Add-PlaylistEntry {',
                 '    param([string]\$path, [string]\$rotation, [int]\$multiplier, [string]\$rotationKey)',
@@ -4971,48 +5345,7 @@
             scriptLines.push('\$script:playlistContent | Out-File -LiteralPath \"$playlistPath\" -Encoding utf8');
             scriptLines.push('Write-Host "Playlist created at: \$playlistPath"');
 
-            scriptLines.push("\$luaPath = 'C:\\Bridge\\misc\\tools\\mpv-x86_64-v3-20260418-git-4377cce\\portable_config\\scripts\\autorotate.lua'");
-            scriptLines.push('\$allRotations = @{}');
-            scriptLines.push('if (Test-Path -LiteralPath \"$luaPath\") {');
-            scriptLines.push('    \$existingContent = Get-Content -LiteralPath \"$luaPath\" -Raw');
-            scriptLines.push('    if (\$existingContent -match \'(?s)local rotations = \\{(.*?)\\}\') {');
-            scriptLines.push('        \$inner = \$matches[1]');
-            scriptLines.push('        \$entries = \$inner -split \',\'');
-            scriptLines.push('        foreach (\$entry in \$entries) {');
-            scriptLines.push('            if (\$entry -match "\\[[\'\\"\" ]*(.*?)[\'\\"\" ]*\\]\\s*=\\s*[\'\\"\" ]?(\\d+)[\'\\"\" ]?") {');
-            scriptLines.push('                \$allRotations[\$matches[1]] = \$matches[2]');
-            scriptLines.push('            }');
-            scriptLines.push('        }');
-            scriptLines.push('    }');
-            scriptLines.push('}');
-            scriptLines.push('foreach (\$file in \$script:rotatedFiles.Keys) { \$allRotations[\$file] = \$script:rotatedFiles[\$file] }');
-            scriptLines.push('if (\$allRotations.Count -gt 0) {');
-            scriptLines.push('    \$luaDir = Split-Path -Parent \$luaPath');
-            scriptLines.push('    if (-not (Test-Path -LiteralPath \$luaDir)) { [System.IO.Directory]::CreateDirectory(\$luaDir) | Out-Null }');
-            scriptLines.push('    \$luaContent = @()');
-            scriptLines.push("    \$luaContent += 'local rotations = {'");
-            scriptLines.push('    foreach (\$file in \$allRotations.Keys) {');
-            scriptLines.push('        \$rot = \$allRotations[\$file]');
-            scriptLines.push("        \$escapedFile = \$file.Replace(\"'\", \"\\\\'\")");
-            scriptLines.push("        \$luaContent += \"    ['\$escapedFile'] = \$rot,\"");
-            scriptLines.push("    }");
-            scriptLines.push("    \$luaContent += '}'");
-            scriptLines.push("    \$luaContent += ''");
-            scriptLines.push("    \$luaContent += 'mp.register_event(\"file-loaded\", function()'");
-            scriptLines.push("    \$luaContent += '    local path = mp.get_property(\"path\")'");
-            scriptLines.push("    \$luaContent += '    if not path then return end'");
-            scriptLines.push("    \$luaContent += ''");
-            scriptLines.push("    \$luaContent += '    mp.set_property(\"video-rotate\", 0)'");
-            scriptLines.push("    \$luaContent += ''");
-            scriptLines.push("    \$luaContent += '    local filename = path:match(\"([^/\\\\\\\\]+)\$\") or path'");
-            scriptLines.push("    \$luaContent += ''");
-            scriptLines.push("    \$luaContent += '    if rotations[filename] then'");
-            scriptLines.push("    \$luaContent += '        mp.set_property(\"video-rotate\", rotations[filename])'");
-            scriptLines.push("    \$luaContent += '    end'");
-            scriptLines.push("    \$luaContent += 'end)'");
-            scriptLines.push('    \$luaContent | Out-File -LiteralPath \"$luaPath\" -Encoding utf8');
-            scriptLines.push('    Write-Host "Updated MPV autorotate script at: \$luaPath"');
-            scriptLines.push('}');
+            scriptLines.push('# --- Note: Rotation/Flip data now handled via physical video processing ---');
 
             
             scriptLines.push('Write-Host "Total items in playlist: \$(\$script:playlistContent.Count - 1)"');
