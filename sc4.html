@@ -870,6 +870,7 @@
                             <button id="editor-flipBtn" class="bar-button">Flip H</button>
                             <button id="editor-cutSegmentBtn" class="bar-button" style="background:#d32f2f;color:white" disabled>Cut Segment</button>
                             <button id="editor-deleteEditThumbsBtn" class="bar-button" style="border-color:#f44336">Delete Edit Thumbnails</button>
+                            <button id="editor-commitBtn" class="editor-greenBtn">Commit</button>
                         </div>
                         <div class="editor-control-group" style="justify-content:flex-end">
                             <span id="editor-timeDisplay" style="font-size: 12px; color: #888;">00:00.000 / 00:00.000</span>
@@ -878,7 +879,6 @@
                     <div id="editor-cutsListContainer"></div>
                     <div style="width:98%; display:flex; justify-content: flex-end; margin-top: 10px; gap: 10px;">
                         <button id="editor-resetBtn" class="bar-button" style="border-color:#f44336">Reset</button>
-                        <button id="editor-commitBtn" class="editor-greenBtn">Commit</button>
                     </div>
                 </div>
             </div>
@@ -1602,10 +1602,18 @@
             const selection = shortcutSelections.get(key);
 
             // Load existing state or start with blank slate
-            editorCurrentCuts = selection && selection.cuts ? JSON.parse(JSON.stringify(selection.cuts)) : [];
-            editorMarkers = selection && selection.markers ? JSON.parse(JSON.stringify(selection.markers)) : [];
-            editorCurrentAppliedFlip = selection ? !!selection.editFlipped : false;
-            editorCurrentAppliedRotation = (selection && selection.editRotation) ? parseInt(selection.editRotation) : 0;
+            editorCurrentCuts = (selection && selection.cuts) ? JSON.parse(JSON.stringify(selection.cuts)) : [];
+            editorMarkers = (selection && selection.markers) ? JSON.parse(JSON.stringify(selection.markers)) : [];
+
+            // If after using the main page buttons (which clear markers), the slate should be cleared in the editor.
+            // Resuming is supported only if markers or cuts exist.
+            if (editorMarkers.length === 0 && editorCurrentCuts.length === 0) {
+                editorCurrentAppliedRotation = 0;
+                editorCurrentAppliedFlip = false;
+            } else {
+                editorCurrentAppliedRotation = (selection && selection.editRotation) ? parseInt(selection.editRotation) : 0;
+                editorCurrentAppliedFlip = selection ? !!selection.editFlipped : false;
+            }
             editorDeleteEditThumbsFlag = selection ? !!selection.deleteEditThumbnails : false;
 
             if (editorFlipBtn) {
@@ -1877,6 +1885,12 @@
                 
                 // Track if it was edited in edit mode
                 selection.editModeRotated = editChanged || editorDeleteEditThumbsFlag;
+
+                // Update visual orientation for thumbnails if uniform and full-length (with no cuts)
+                if (isFullLength && !hasCuts) {
+                    selection.rotation = finalEditRotation;
+                    selection.flipped = finalEditFlipped;
+                }
 
                 // Clear loaded persistent flags as they are now superseded by session edits
                 selection.loadedEditRotated = false;
@@ -2590,13 +2604,21 @@
             const rotate = (delta) => {
                 let selection = shortcutSelections.get(key);
                 if (!selection) {
-                    selection = { videoName, projectPath, subfolder, projectName, type: '', rotation: "0" };
+                    selection = { videoName, projectPath, subfolder, projectName, type: '', rotation: "0", flipped: false };
                     shortcutSelections.set(key, selection);
                 }
                 let currentRot = parseInt(selection.rotation || "0");
                 let newRot = (currentRot + delta + 360) % 360;
                 selection.rotation = newRot.toString();
-                selection.buttonRotationTouched = true;
+
+                // Main page buttons now perform "hard" edits
+                selection.editModeRotated = true;
+                selection.editRotation = selection.rotation;
+                selection.editRotationType = 'uniform';
+                selection.isFullLength = true;
+                selection.markers = []; // Clear complex markers
+                selection.cuts = [];    // Clear cuts
+
                 updateRowUI(rowDiv, videoName, projectPath);
             };
 
@@ -2630,6 +2652,13 @@
                     shortcutSelections.set(key, selection);
                 }
                 selection.flipped = !selection.flipped;
+
+                // Main page flip now performs "hard" edit
+                selection.editModeRotated = true;
+                selection.editFlipped = selection.flipped;
+                selection.markers = []; // Clear complex markers
+                selection.cuts = [];    // Clear cuts
+
                 updateRowUI(rowDiv, videoName, projectPath);
             };
             leftGroup.appendChild(createBtn('H Flip', toggleFlip));
@@ -2999,7 +3028,6 @@
                 { id: 'shortcuts_delete', title: 'Delete Shortcuts' },
                 { id: 'file_delete', title: 'File Deletions' },
                 { id: 'moves', title: 'File Moves' },
-                { id: 'lua', title: 'LUA Script Updates (Rotations, Flips)' },
                 { id: 'categories', title: 'Category Updates' },
                 { id: 'thumb_cleanup', title: 'Thumbnail Cleanups' }
             ];
@@ -3138,7 +3166,7 @@
                 '        \$t = \$f / \$fps',
                 '        \$mid = (\$f + 0.5) / \$fps',
                 '        ',
-                '        # 1. Update Rotation State based on Markers',
+                '        # 1. Update Rotation State based on Markers (Rotation marker frame is inclusive)',
                 '        \$rotation = 0',
                 '        if (\$markers) { ',
                 '            foreach (\$m in \$markers) { ',
@@ -3146,11 +3174,13 @@
                 '            } ',
                 '        }',
                 '        ',
-                '        # 2. Check Cut State',
+                '        # 2. Check Cut State (Cuts are inclusive of both start and end frames)',
                 '        \$isCut = \$false',
                 '        if (\$cuts) { ',
                 '            foreach (\$c in \$cuts) { ',
-                '                if (\$mid -ge \$c.start -and \$mid -lt \$c.end) { \$isCut = \$true; break } ',
+                '                \$startF = [Math]::Floor(\$c.start * \$fps + 0.1)',
+                '                \$endF = [Math]::Floor(\$c.end * \$fps - 0.1)',
+                '                if (\$f -ge \$startF -and \$f -le \$endF) { \$isCut = \$true; break } ',
                 '            } ',
                 '        }',
                 '        ',
@@ -3812,151 +3842,7 @@
             }
 
             if (rotationUpdates.size > 0) {
-                scriptLines.push('# --- Updating Rotation Data ---');
-                rotationUpdates.forEach((update, projectPath) => {
-                    const projectName = displayedProjects.get(projectPath) || projectPath;
-                    const res = getPSPathRes('\$BaseDir', projectPath, projectName, '');
-                    const rotationFileVar = `(Join-Path -Path ${res} -ChildPath 'rotation_data.txt')`;
-                    const escapedProjectPath = escapePSString(projectPath);
-                    
-                    scriptLines.push(`\$toAdd = @{`);
-                    for (const [vName, rot] of Object.entries(update.toAdd)) {
-                        scriptLines.push(`    '${escapePSString(vName)}' = '${rot}'`);
-                    }
-                    scriptLines.push(`}`);
-                    scriptLines.push(`\$toRemove = @(`);
-                    update.toRemove.forEach(vName => {
-                        scriptLines.push(`    '${escapePSString(vName)}'`);
-                    });
-                    scriptLines.push(`)`);
-                    scriptLines.push(`Update-RotationData -filePath ${rotationFileVar} -toAdd \$toAdd -toRemove \$toRemove`);
-                    scriptLines.push(`Write-Host "Surgically updated rotation_data.txt for ${escapedProjectPath || '(Root)'}"`);
-                });
-                scriptLines.push('');
-
-                scriptLines.push('# --- Update Central LUA Rotation File ---');
-                scriptLines.push("\$luaPath = 'C:\\Bridge\\misc\\tools\\mpv-x86_64-v3-20260418-git-4377cce\\portable_config\\scripts\\autorotate.lua'");
-                scriptLines.push('\$script:rotatedFiles = @{}');
-                    
-                shortcutSelections.forEach((sel, key) => {
-                        const initial = initialShortcutSelections.get(key);
-                        const initialRot = (initial && initial.rotation) || "0";
-                        const currentRot = sel.rotation || "0";
-                        if (sel.buttonRotationTouched) {
-                            summaryActions.lua.push(`${sel.videoName}: Rotate ${initialRot}° -> ${currentRot}°`);
-                        }
-                        if (sel.buttonRotationTouched) {
-                            scriptLines.push(`\$script:rotatedFiles['${escapePSString(sel.videoName)}'] = ${currentRot}`);
-                    }
-                });
-
-                scriptLines.push('\$allRotations = @{}');
-                scriptLines.push('if (Test-Path -LiteralPath \"$luaPath\") {');
-                scriptLines.push('    \$existingContent = Get-Content -LiteralPath \"$luaPath\" -Raw');
-                scriptLines.push('    if (\$existingContent -match \'(?s)local rotations = \\{(.*?)\\}\') {');
-                scriptLines.push('        \$inner = \$matches[1]');
-                scriptLines.push('        \$entries = \$inner -split \',\'');
-                scriptLines.push('        foreach (\$entry in \$entries) {');
-                scriptLines.push('            if (\$entry -match "\\[[\'\\"\" ]*(.*?)[\'\\"\" ]*\\]\\s*=\\s*[\'\\"\" ]?(\\d+)[\'\\"\" ]?") {');
-                scriptLines.push('                \$allRotations[\$matches[1]] = \$matches[2]');
-                scriptLines.push('            }');
-                scriptLines.push('        }');
-                scriptLines.push('    }');
-                scriptLines.push('}');
-                scriptLines.push('foreach (\$file in \$script:rotatedFiles.Keys) { \$allRotations[\$file] = \$script:rotatedFiles[\$file] }');
-                scriptLines.push('if (\$allRotations.Count -gt 0) {');
-                scriptLines.push('    \$luaDir = Split-Path -Parent \$luaPath');
-                scriptLines.push('    if (-not (Test-Path -LiteralPath \$luaDir)) { [System.IO.Directory]::CreateDirectory(\$luaDir) | Out-Null }');
-                scriptLines.push('    \$luaContent = @()');
-                scriptLines.push("    \$luaContent += 'local rotations = {'");
-                scriptLines.push('    foreach (\$file in \$allRotations.Keys) {');
-                scriptLines.push('        \$rot = \$allRotations[\$file]');
-                scriptLines.push("        \$escapedFile = \$file.Replace(\"'\", \"\\\\'\")");
-                scriptLines.push("        \$luaContent += \"    ['\$escapedFile'] = \$rot,\"");
-                scriptLines.push("    }");
-                scriptLines.push("    \$luaContent += '}'");
-                scriptLines.push("    \$luaContent += ''");
-                scriptLines.push("    \$luaContent += 'mp.register_event(\"file-loaded\", function()'");
-                scriptLines.push("    \$luaContent += '    local path = mp.get_property(\"path\")'");
-                scriptLines.push("    \$luaContent += '    if not path then return end'");
-                scriptLines.push("    \$luaContent += ''");
-                scriptLines.push("    \$luaContent += '    mp.set_property(\"video-rotate\", 0)'");
-                scriptLines.push("    \$luaContent += ''");
-                scriptLines.push("    \$luaContent += '    local filename = path:match(\"([^/\\\\\\\\]+)\$\") or path'");
-                scriptLines.push("    \$luaContent += ''");
-                scriptLines.push("    \$luaContent += '    if rotations[filename] then'");
-                scriptLines.push("    \$luaContent += '        mp.set_property(\"video-rotate\", rotations[filename])'");
-                scriptLines.push("    \$luaContent += '    end'");
-                scriptLines.push("    \$luaContent += 'end)'");
-                scriptLines.push('    \$luaContent | Out-File -LiteralPath \"$luaPath\" -Encoding utf8');
-                scriptLines.push('    Write-Host "Updated MPV autorotate script at: \$luaPath"');
-                scriptLines.push('}');
-                scriptLines.push('');
-            }
-
-            // --- Update Central LUA Flip File ---
-                const hasFlipChanges = Array.from(shortcutSelections.entries()).some(([key, sel]) => {
-                    const initial = initialShortcutSelections.get(key);
-                    const initialFlipped = initial ? !!initial.flipped : false;
-                    return !!sel.flipped !== initialFlipped;
-                });
-
-                if (hasFlipChanges || Array.from(shortcutSelections.values()).some(sel => sel.flipped)) {
-                scriptLines.push('# --- Update Central LUA Flip File ---');
-                scriptLines.push("\$flipLuaPath = 'C:\\Bridge\\misc\\tools\\mpv-x86_64-v3-20260418-git-4377cce\\portable_config\\scripts\\flip.lua'");
-                scriptLines.push('\$script:flippedFiles = @{}');
-                    
-                    shortcutSelections.forEach((sel, key) => {
-                        const initial = initialShortcutSelections.get(key);
-                        const initialFlipped = initial ? !!initial.flipped : false;
-                        if (!!sel.flipped !== initialFlipped) {
-                            summaryActions.lua.push(`${sel.videoName}: H-Flip ${initialFlipped ? 'ON' : 'OFF'} -> ${sel.flipped ? 'ON' : 'OFF'}`);
-                        }
-                        if (sel.flipped) {
-                            scriptLines.push(`\$script:flippedFiles['${escapePSString(sel.videoName)}'] = 'hflip'`);
-                        }
-                });
-
-                scriptLines.push('\$allFlips = @{}');
-                scriptLines.push('if (Test-Path -LiteralPath \"$flipLuaPath\") {');
-                scriptLines.push('    \$existingFlipContent = Get-Content -LiteralPath \"$flipLuaPath\" -Raw');
-                scriptLines.push('    if (\$existingFlipContent -match \'(?s)local flips = \\{(.*?)\\}\') {');
-                scriptLines.push('        \$innerFlip = \$matches[1]');
-                scriptLines.push('        \$flipEntries = \$innerFlip -split \',\'');
-                scriptLines.push('        foreach (\$fEntry in \$flipEntries) {');
-                scriptLines.push('            if (\$fEntry -match "\\[[\'\\"\" ]*(.*?)[\'\\"\" ]*\\]\\s*=\\s*[\'\\"\" ]*(.*?)[\'\\"\" ]*") {');
-                scriptLines.push('                \$allFlips[\$matches[1]] = \$matches[2]');
-                scriptLines.push('            }');
-                scriptLines.push('        }');
-                scriptLines.push('    }');
-                scriptLines.push('}');
-                scriptLines.push('foreach (\$fFile in \$script:flippedFiles.Keys) { \$allFlips[\$fFile] = \$script:flippedFiles[\$fFile] }');
-                scriptLines.push('if (\$allFlips.Count -gt 0) {');
-                scriptLines.push('    \$flipLuaDir = Split-Path -Parent \$flipLuaPath');
-                scriptLines.push('    if (-not (Test-Path -LiteralPath \$flipLuaDir)) { [System.IO.Directory]::CreateDirectory(\$flipLuaDir) | Out-Null }');
-                scriptLines.push('    \$flipLuaContent = @()');
-                scriptLines.push("    \$flipLuaContent += 'local flips = {'");
-                scriptLines.push('    foreach (\$fFile in \$allFlips.Keys) {');
-                scriptLines.push('        \$filter = \$allFlips[\$fFile]');
-                scriptLines.push("        \$escapedFFile = \$fFile.Replace(\"'\", \"\\\\'\")");
-                scriptLines.push("        \$flipLuaContent += \"    ['\$escapedFFile'] = '\$filter',\"");
-                scriptLines.push("    }");
-                scriptLines.push("    \$flipLuaContent += '}'");
-                scriptLines.push("    \$flipLuaContent += ''");
-                scriptLines.push("    \$flipLuaContent += 'mp.register_event(\"file-loaded\", function()'");
-                scriptLines.push("    \$flipLuaContent += '    local path = mp.get_property(\"path\")'");
-                scriptLines.push("    \$flipLuaContent += '    local filename = path:match(\"^.+[\\\\\\\\/](.+)\$\") or path'");
-                scriptLines.push("    \$flipLuaContent += ''");
-                scriptLines.push("    \$flipLuaContent += '    mp.command(\"vf remove @flip\")'");
-                scriptLines.push("    \$flipLuaContent += ''");
-                scriptLines.push("    \$flipLuaContent += '    if flips[filename] then'");
-                scriptLines.push("    \$flipLuaContent += '        local filter = flips[filename]'");
-                scriptLines.push("    \$flipLuaContent += '        mp.commandv(\"vf\", \"add\", \"@flip:\" .. filter)'");
-                scriptLines.push("    \$flipLuaContent += '    end'");
-                scriptLines.push("    \$flipLuaContent += 'end)'");
-                scriptLines.push('    \$flipLuaContent | Out-File -LiteralPath \"$flipLuaPath\" -Encoding utf8');
-                scriptLines.push('    Write-Host "Updated MPV flip script at: \$flipLuaPath"');
-                scriptLines.push('}');
+                scriptLines.push('# --- Note: Rotation/Flip data now handled via physical video processing ---');
                 scriptLines.push('');
             }
 
